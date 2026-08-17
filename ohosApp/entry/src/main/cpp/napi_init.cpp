@@ -596,7 +596,9 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
     }
 
     auto api = libshared_symbols();
-    int handler = api->kotlin.root.initKuikly();
+    // Pass the ArkTS napi_env so generated initKuikly can initialize
+    // kotlinx.coroutines Dispatchers.Main (initMainHandler / tsfn).
+    int handler = api->kotlin.root.initKuikly(env);
     napi_value result;
     napi_create_int32(env, handler, &result);
     return result;

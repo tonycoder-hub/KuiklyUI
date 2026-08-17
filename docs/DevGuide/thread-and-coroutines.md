@@ -84,6 +84,8 @@ maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 
 :::tip 提示
 不同平台支持的调度器有所不同，例如，除了各平台共有的Dispatchers.Default和Dispatchers.Unconfined，Android平台还提供了Dispatchers.Main、Dispatchers.IO等。 具体可以参考kotlinx.coroutines的API文档。
+
+鸿蒙平台的 `Dispatchers.Main` 依赖 kotlinx.coroutines OHOS 适配中的 `initMainHandler(env)`。Kuikly 会在 NAPI `InitKuikly` 把 `napi_env` 传入生成的 `initKuikly(env)` 时完成这次初始化。宿主需要调用 `api->kotlin.root.initKuikly(env)`（不要再调用无参的 `initKuikly()`），且业务模块需依赖 `org.jetbrains.kotlinx:kotlinx-coroutines-core` 的 KBA/OHOS 版本（compose 模块已传递依赖）。未初始化时 `withContext(Dispatchers.Main)` 会抛出 `UninitializedPropertyAccessException: lateinit property tsfn has not been initialized`，并可能触发 `ecma_vm cannot run in multi-thread`。
 :::
 
 #### kuiklyx.coroutines库

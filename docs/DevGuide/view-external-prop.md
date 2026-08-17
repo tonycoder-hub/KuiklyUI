@@ -158,7 +158,7 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
 
     KRRenderViewSetExternalPropHandler(*ViewPropHandler, *ViewResetPropHandler);
 
-    // 位于api->kotlin.root.initKuikly()之前;
+    // 位于api->kotlin.root.initKuikly(env)之前;
  
     ...
 }
