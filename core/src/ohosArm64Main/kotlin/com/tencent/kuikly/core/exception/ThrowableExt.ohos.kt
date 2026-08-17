@@ -22,6 +22,7 @@ import kotlinx.cinterop.LongVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.sizeOf
 import kotlinx.cinterop.toCPointer
 import kotlinx.cinterop.toKString
@@ -165,7 +166,9 @@ private fun parseSymbolInfo(addrList: List<Long>): List<SymbolInfo> {
             symbolInfo.offsetFromSoBase = addr - result.dli_fbase.toLong() - 1
             symbolInfo.soName = result.dli_fname?.toKString() ?: ""
 
-            kr_fill_dl_info_sym(xdlInfo.ptr, result.ptr, symbolInfo.offsetFromSoBase)
+            // Windows cinterop may type the second parameter as ohos.Dl_info while
+            // alloc/dladdr use platform.posix.Dl_info. Infer the expected struct.
+            kr_fill_dl_info_sym(xdlInfo.ptr, result.ptr.reinterpret(), symbolInfo.offsetFromSoBase)
             symbolInfo.name = result.dli_sname?.toKString() ?: ""
             symbolInfo.offsetFromSymbol = result.dli_saddr.toLong()
             symbolInfoList.add(symbolInfo)
