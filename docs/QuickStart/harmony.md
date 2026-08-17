@@ -536,7 +536,8 @@ target_link_libraries(entry PUBLIC libace_napi.z.so kuikly_shared kuikly_render)
 static napi_value InitKuikly(napi_env env, napi_callback_info info) {
   // symbols入口名和kuikly工程的配置有关，具体查看产物的头文件
   auto api = libshared_symbols();
-  int handler = api->kotlin.root.initKuikly();
+  // Pass napi_env so kotlinx.coroutines Dispatchers.Main can be initialized (initMainHandler).
+  int handler = api->kotlin.root.initKuikly(env);
   napi_value result;
   napi_create_int32(env, handler, &result);
   return result;

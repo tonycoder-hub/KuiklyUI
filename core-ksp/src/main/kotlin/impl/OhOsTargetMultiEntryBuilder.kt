@@ -40,6 +40,7 @@ class OhOsTargetMultiEntryBuilder(private val catchException: Boolean, private v
                 addImport("com.tencent.kuikly.core.manager", "KotlinMethod")
                 addImport("kotlinx.cinterop", "staticCFunction")
                 addImport("ohos", "com_tencent_kuikly_SetCallKotlin")
+                addImport("kotlinx.coroutines", "initMainHandler")
 
                 addFunction(createCallNativeFunc())
                 addFunction(createInitKuiklyMethod(pagesAnnotations))
@@ -60,9 +61,15 @@ class OhOsTargetMultiEntryBuilder(private val catchException: Boolean, private v
     ): FunSpec {
         return FunSpec.builder("initKuikly")
             .addAnnotations(createCFuncAnnotations())
+            .addParameter("env", ClassName("platform.ohos", "napi_env"))
             .returns(Int::class)
             .addStatement(
                 "if (!BridgeManager.isDidInit()) {\n" +
+                        // kotlinx.coroutines Dispatchers.Main on OHOS is backed by a
+                        // thread-safe napi function. initMainHandler(env) must run once
+                        // on the ArkTS thread or withContext(Dispatchers.Main) throws
+                        // UninitializedPropertyAccessException: lateinit property tsfn.
+                        "initMainHandler(env)\n" +
                         "BridgeManager.init(${catchException})\n"
             )
             .addRegisterPageRouteStatement(pagesAnnotations)
