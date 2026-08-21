@@ -1342,7 +1342,9 @@ void UpdateInputNodeEnterKeyType(ArkUI_NodeHandle node, ArkUI_EnterKeyType enter
 
 ArkUI_EnterKeyType GetInputNodeEnterKeyType(ArkUI_NodeHandle node) {
     auto item = GetNodeApi()->getAttribute(node, NODE_TEXT_INPUT_ENTER_KEY_TYPE);
-    return item ? static_cast<ArkUI_EnterKeyType>(item->value[0].i32) : ARKUI_ENTER_KEY_TYPE_NEW_LINE;
+    // Single-line TextInput: ArkUI enterKeyType default is Done. NEW_LINE was a
+    // leftover stand-in (same leftover as mapping returnKeyType "none" → NEW_LINE).
+    return item ? static_cast<ArkUI_EnterKeyType>(item->value[0].i32) : ARKUI_ENTER_KEY_TYPE_DONE;
 }
 
 void UpdateInputNodeMaxLength(ArkUI_NodeHandle node, int32_t max_length) {
