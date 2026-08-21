@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include "NAPIStringAdopt.h"
 #include "NAPIUtil.h"
 
 namespace kuikly {
@@ -63,7 +64,10 @@ char *getNApiArgsString(napi_env env, napi_value value) {
 
 std::string getNApiArgsStdString(napi_env env, napi_value value) {
     char *resStr = getNApiArgsString(env, value);
-    std::string resString(resStr);
+    // leftover: std::string(resStr) is UB when getNApiArgsString returns 0
+    // after napi_throw_error. Adopt copies or returns "" so we never
+    // construct from nullptr; caller still delete[]s (no-op on null).
+    std::string resString = adopt_napi_cstr(resStr);
     delete[] resStr;
     return resString;
 }
