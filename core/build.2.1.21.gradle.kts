@@ -47,6 +47,9 @@ kotlin {
         publishLibraryVariants("release")
     }
 
+    // Host unit tests (no device). jvmMain already has the expect/actuals.
+    jvm()
+
     iosSimulatorArm64()
     iosX64()
     iosArm64()
@@ -70,6 +73,11 @@ kotlin {
 
     sourceSets {
         val commonMain by getting
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
         val appleMain by sourceSets.creating {
             dependsOn(commonMain)
         }
