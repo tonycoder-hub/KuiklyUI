@@ -23,10 +23,15 @@ CXX="${CXX:-g++}"
 CC="${CC:-gcc}"
 MODE="${1:-default}"
 
+# KRJSONObject.h uses std::shared_ptr / std::vector without including
+# <memory>/<vector> (fixed in leftover #1651). Force-include so this
+# leftover canvas host test compiles without touching KRJSONObject.cpp.
 COMMON_FLAGS=(
     -std=c++17
     -Wall
     -Wextra
+    -include memory
+    -include vector
     -I"$CANVAS_DIR"
     -I"$UTIL_DIR"
     -I"$CPP_DIR"
