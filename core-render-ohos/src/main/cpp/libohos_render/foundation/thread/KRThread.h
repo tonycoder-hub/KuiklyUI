@@ -23,6 +23,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <pthread.h>
 #include <queue>
 #include <string>
 #include <thread>
@@ -96,6 +97,8 @@ class KRThread {
 
     void WorkerLoop(const std::string &name);
     void OnAsync();
+    void JoinWorker();
+    static void *WorkerEntry(void *arg);
     static void AsyncCb(uv_async_t *handle);
     static void TimerCb(uv_timer_t *handle);
     static void TimerCloseCb(uv_handle_t *handle);
@@ -105,7 +108,10 @@ class KRThread {
     void StartTimerInLoop(std::function<void()> task, int delayMs);
 
     // ---- 线程与 loop ----
-    std::thread m_workerThread;
+    // 用 pthread_create + 8MiB 栈创建；std::thread 无法设置栈大小，也不能接管已有 pthread。
+    // join / native handle / 线程名仍走 pthread_*，QoS 仍在 WorkerLoop 里作用于当前线程。
+    pthread_t m_workerThread{};
+    bool m_workerJoinable{false};
     std::thread::id m_workerThreadId;
     uv_loop_t m_loop{};
     uv_async_t m_async{};
