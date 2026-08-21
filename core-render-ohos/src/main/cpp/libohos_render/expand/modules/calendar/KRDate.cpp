@@ -20,19 +20,38 @@
 namespace kuikly {
 namespace util {
 
+namespace {
+
+// C++ / and % are toward-zero. JS/Android Date keep millis in [0, 999], so a
+// leftover-negative remainder must borrow one second (floor-div).
+void SplitEpochMillis(std::int64_t timestamp, std::int64_t *seconds, int *millisOut) {
+    auto q = timestamp / 1000;
+    auto r = timestamp % 1000;
+    if (r < 0) {
+        q--;
+        r += 1000;
+    }
+    *seconds = q;
+    *millisOut = static_cast<int>(r);
+}
+
+}  // namespace
+
 Date::Date() {
     std::chrono::milliseconds msTime =
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
     std::int64_t timestamp = msTime.count();
-    time_t timeSec = static_cast<time_t>(timestamp / 1000);
+    std::int64_t seconds = 0;
+    SplitEpochMillis(timestamp, &seconds, &millis);
+    time_t timeSec = static_cast<time_t>(seconds);
     localtime_r(&timeSec, &time);
-    millis = static_cast<int>(timestamp % 1000);
 }
 
 Date::Date(std::int64_t timestamp) {
-    time_t timeSec = static_cast<time_t>(timestamp / 1000);
+    std::int64_t seconds = 0;
+    SplitEpochMillis(timestamp, &seconds, &millis);
+    time_t timeSec = static_cast<time_t>(seconds);
     localtime_r(&timeSec, &time);
-    millis = static_cast<int>(timestamp % 1000);
 }
 
 Date::Date(const Date &other) {
@@ -102,8 +121,13 @@ void Date::SetSeconds(int sec) {
     time.tm_sec = sec;
 }
 void Date::SetMilliseconds(int num) {
-    time.tm_sec += num / 1000;  // 溢出处理。如果设置的毫秒数超过1000，则要进位到秒
-    millis = num % 1000;
+    // 溢出处理。如果设置的毫秒数超过1000或为负，则按 floor-div 进位/借位到秒，
+    // 使 millis 始终落在 [0, 999]（对齐 JS/Android Date）。
+    std::int64_t q = 0;
+    int r = 0;
+    SplitEpochMillis(num, &q, &r);
+    time.tm_sec += static_cast<int>(q);
+    millis = r;
 }
 
 std::int64_t Date::GetTime() {
