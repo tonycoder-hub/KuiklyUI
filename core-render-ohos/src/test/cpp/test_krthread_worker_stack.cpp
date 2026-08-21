@@ -1,8 +1,8 @@
 // Host unit test: context worker stack is at least 8 MiB.
 //
-// Proves KRCreateContextWorkerThread (used by KRThread on OpenHarmony)
-// creates a live pthread whose stack, as reported by
-// pthread_getattr_np + pthread_attr_getstacksize, is >= 8 MiB.
+// Proves KRSizedThread (drop-in std::thread used by KRThread) creates a
+// live pthread whose stack, as reported by pthread_getattr_np +
+// pthread_attr_getstacksize, is >= 8 MiB.
 //
 // No Harmony device. Links only pthread.
 //
@@ -17,7 +17,7 @@
 #define _GNU_SOURCE
 #endif
 
-#include "libohos_render/foundation/thread/KRThreadCreate.h"
+#include "libohos_render/foundation/thread/KRSizedThread.h"
 
 #include <condition_variable>
 #include <cstdio>
@@ -36,8 +36,7 @@ struct Park {
     bool stop = false;
 };
 
-void *ParkMain(void *arg) {
-    auto *park = static_cast<Park *>(arg);
+void ParkMain(Park *park) {
     {
         std::lock_guard<std::mutex> lock(park->mu);
         park->ready = true;
@@ -45,6 +44,10 @@ void *ParkMain(void *arg) {
     park->cv.notify_all();
     std::unique_lock<std::mutex> lock(park->mu);
     park->cv.wait(lock, [park]() { return park->stop; });
+}
+
+void *ParkPthread(void *arg) {
+    ParkMain(static_cast<Park *>(arg));
     return nullptr;
 }
 
@@ -93,7 +96,7 @@ int main() {
     // Control: default pthread_create (same as old std::thread worker).
     Park default_park;
     pthread_t default_thread{};
-    int rc = pthread_create(&default_thread, nullptr, &ParkMain, &default_park);
+    int rc = pthread_create(&default_thread, nullptr, &ParkPthread, &default_park);
     if (rc != 0) {
         return Fail(("default pthread_create failed, err=" + std::to_string(rc)).c_str());
     }
@@ -108,26 +111,22 @@ int main() {
     Unpark(&default_park);
     pthread_join(default_thread, nullptr);
 
-    // Production path: the helper KRThread constructor uses.
+    // Production path: same construct / join usage as KRThread + std::thread.
     Park worker_park;
-    pthread_t worker_thread{};
-    rc = KRCreateContextWorkerThread(&worker_thread, &ParkMain, &worker_park);
-    if (rc != 0) {
-        return Fail(("KRCreateContextWorkerThread failed, err=" + std::to_string(rc)).c_str());
-    }
+    KRSizedThread worker([&worker_park]() { ParkMain(&worker_park); });
     WaitReady(&worker_park);
     size_t worker_stack = 0;
-    if (!ReadLiveStackSize(worker_thread, &worker_stack, &err)) {
+    if (!ReadLiveStackSize(worker.native_handle(), &worker_stack, &err)) {
         Unpark(&worker_park);
-        pthread_join(worker_thread, nullptr);
+        worker.join();
         return Fail(err.c_str());
     }
     Unpark(&worker_park);
-    pthread_join(worker_thread, nullptr);
+    worker.join();
 
     std::printf("default pthread stack: %zu bytes (%.2f KiB)\n", default_stack,
                 static_cast<double>(default_stack) / 1024.0);
-    std::printf("KRCreateContextWorkerThread stack: %zu bytes (%.2f KiB)\n", worker_stack,
+    std::printf("KRSizedThread stack: %zu bytes (%.2f KiB)\n", worker_stack,
                 static_cast<double>(worker_stack) / 1024.0);
     std::printf("required minimum: %zu bytes (8192.00 KiB)\n", kMinWorkerStack);
 

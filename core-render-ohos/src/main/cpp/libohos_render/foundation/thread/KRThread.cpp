@@ -19,10 +19,8 @@
 #include <qos/qos.h>
 #include <cassert>
 #include <chrono>
-#include <system_error>
 #include <utility>
 
-#include "libohos_render/foundation/thread/KRThreadCreate.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 
 namespace {
@@ -39,38 +37,11 @@ struct TimerContext {
 //     带来不必要的 latency 抖动；太长则在主线程上观感卡顿。100ms 是经验阀值。
 constexpr auto kDirectRunFastFailWindow = std::chrono::milliseconds{100};
 
-struct WorkerStartArgs {
-    KRThread *self;
-    std::string name;
-};
-
 }  // namespace
 
-void *KRThread::WorkerEntry(void *arg) {
-    auto *start = static_cast<WorkerStartArgs *>(arg);
-    KRThread *self = start->self;
-    std::string name = std::move(start->name);
-    delete start;
-    self->WorkerLoop(name);
-    return nullptr;
-}
-
-void KRThread::JoinWorker() {
-    if (m_workerJoinable) {
-        pthread_join(m_workerThread, nullptr);
-        m_workerJoinable = false;
-    }
-}
-
 KRThread::KRThread(const std::string &name) {
-    auto *args = new WorkerStartArgs{this, name};
-    int err = KRCreateContextWorkerThread(&m_workerThread, &KRThread::WorkerEntry, args);
-    if (err != 0) {
-        delete args;
-        throw std::system_error(err, std::generic_category(), "KRThread pthread_create");
-    }
-    m_workerJoinable = true;
-    pthread_setname_np(m_workerThread, name.c_str());
+    m_workerThread = KRSizedThread([this, name]() { this->WorkerLoop(name); });
+    pthread_setname_np(m_workerThread.native_handle(), name.c_str());
 
     // 等 worker 线程把 uv_loop_init / uv_async_init 完成后再返回，
     // 这样外部立刻 DispatchAsync 也能保证 m_async 已就绪。
@@ -81,7 +52,9 @@ KRThread::KRThread(const std::string &name) {
 KRThread::~KRThread() {
     if (!m_loopReady.load()) {
         // 启动失败：worker 已退出或从未起来。
-        JoinWorker();
+        if (m_workerThread.joinable()) {
+            m_workerThread.join();
+        }
         return;
     }
 
@@ -89,7 +62,9 @@ KRThread::~KRThread() {
     // 唤醒 loop 线程，让它走到 OnAsync 里检查 m_stop，关闭 async 句柄并退出 loop。
     uv_async_send(&m_async);
 
-    JoinWorker();
+    if (m_workerThread.joinable()) {
+        m_workerThread.join();
+    }
 }
 
 void KRThread::WorkerLoop(const std::string &name) {

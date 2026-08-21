@@ -6,7 +6,7 @@
 #
 # Applies ulimit -s 256 so a default pthread / old std::thread worker is
 # ~256 KiB (OpenHarmony's ~132 KiB default is the same class of bug).
-# KRCreateContextWorkerThread must still produce an 8 MiB stack.
+# KRSizedThread must still produce an 8 MiB stack.
 
 set -euo pipefail
 
@@ -23,13 +23,18 @@ if [[ ! -f "$KRTHREAD_CPP" ]]; then
     exit 1
 fi
 
-# The live worker must be created by the 8 MiB helper, not std::thread.
-if ! grep -q 'KRCreateContextWorkerThread' "$KRTHREAD_CPP"; then
-    echo "FAIL: KRThread.cpp does not call KRCreateContextWorkerThread"
+# KRThread.cpp should use the drop-in wrapper like std::thread.
+if ! grep -q 'm_workerThread = KRSizedThread' "$KRTHREAD_CPP"; then
+    echo "FAIL: KRThread.cpp does not construct the worker with KRSizedThread"
     exit 1
 fi
 if grep -E 'm_workerThread = std::thread' "$KRTHREAD_CPP"; then
     echo "FAIL: KRThread.cpp still constructs the worker with std::thread"
+    exit 1
+fi
+# pthread stack size must stay isolated inside the wrapper.
+if grep -E 'pthread_create|pthread_join|pthread_attr_setstacksize' "$KRTHREAD_CPP"; then
+    echo "FAIL: KRThread.cpp still inlines pthread create/join/stack size"
     exit 1
 fi
 
