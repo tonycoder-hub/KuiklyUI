@@ -73,6 +73,10 @@ std::string KRFileModule::GetProfilerDir() {
 // ---------------------------------------------------------------------------
 void KRFileModule::WriteFile(const KRAnyValue &params, const KRRenderCallback &callback) {
     auto jsonObj = util::JSONObject::Parse(params->toString());
+    if (!jsonObj) {
+        if (callback) callback(MakeResult("error", "invalid json"));
+        return;
+    }
     const std::string filename = jsonObj->GetString("filename");
     const std::string content  = jsonObj->GetString("content");
 
@@ -106,6 +110,10 @@ void KRFileModule::WriteFile(const KRAnyValue &params, const KRRenderCallback &c
 // ---------------------------------------------------------------------------
 void KRFileModule::AppendFile(const KRAnyValue &params, const KRRenderCallback &callback) {
     auto jsonObj = util::JSONObject::Parse(params->toString());
+    if (!jsonObj) {
+        if (callback) callback(MakeResult("error", "invalid json"));
+        return;
+    }
     const std::string filename = jsonObj->GetString("filename");
     const std::string content  = jsonObj->GetString("content");
 
