@@ -19,6 +19,7 @@ OUT_DIR="$SCRIPT_DIR/build"
 mkdir -p "$OUT_DIR"
 
 CXX="${CXX:-g++}"
+CC="${CC:-gcc}"
 MODE="${1:-default}"
 
 COMMON_FLAGS=(
@@ -26,6 +27,12 @@ COMMON_FLAGS=(
     -Wall
     -Wextra
     -I"$UTIL_DIR"
+    -I"$CPP_DIR"
+)
+
+C_FLAGS=(
+    -Wall
+    -Wextra
     -I"$CPP_DIR"
 )
 
@@ -37,14 +44,21 @@ SRCS=(
 case "$MODE" in
     default)
         BIN="$OUT_DIR/kr_json_object_getstring_test"
+        CJSON_OBJ="$OUT_DIR/cJSON.o"
+        echo ">>> [$CC] compile $CJSON_OBJ"
+        "$CC" "${C_FLAGS[@]}" -O2 -c "$CJSON_DIR/cJSON.c" -o "$CJSON_OBJ"
         echo ">>> [$CXX] compile $BIN"
-        "$CXX" "${COMMON_FLAGS[@]}" -O2 "${SRCS[@]}" -x c "$CJSON_DIR/cJSON.c" -o "$BIN"
+        "$CXX" "${COMMON_FLAGS[@]}" -O2 "${SRCS[@]}" "$CJSON_OBJ" -o "$BIN"
         ;;
     asan)
         BIN="$OUT_DIR/kr_json_object_getstring_test_asan"
+        CJSON_OBJ="$OUT_DIR/cJSON_asan.o"
+        echo ">>> [$CC] ASan/UBSan compile $CJSON_OBJ"
+        "$CC" "${C_FLAGS[@]}" -O1 -g -fno-omit-frame-pointer \
+            -fsanitize=address,undefined -c "$CJSON_DIR/cJSON.c" -o "$CJSON_OBJ"
         echo ">>> [$CXX] ASan/UBSan compile $BIN"
         "$CXX" "${COMMON_FLAGS[@]}" -O1 -g -fno-omit-frame-pointer \
-            -fsanitize=address,undefined "${SRCS[@]}" -x c "$CJSON_DIR/cJSON.c" -o "$BIN"
+            -fsanitize=address,undefined "${SRCS[@]}" "$CJSON_OBJ" -o "$BIN"
         ;;
     *)
         echo "unknown mode: $MODE (default|asan)"
