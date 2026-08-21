@@ -16,11 +16,11 @@
 
 #include <string>
 
+#include "KRCodecDecode.h"
+
 namespace kuikly {
 inline namespace model_util {
 std::string KREncodeURLComponent(const std::string &str);
-
-std::string KRDecodeURLComponent(const std::string &str);
 
 std::string KRBase64Encode(const std::string &str);
 std::string KRBase64Encode(const std::string_view in);

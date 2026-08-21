@@ -51,26 +51,8 @@ std::string KREncodeURLComponent(const std::string &in) {
     return out;
 }
 
-std::string KRDecodeURLComponent(const std::string &in) {
-    std::string res;
-    for (size_t i = 0; i < in.size(); ++i) {
-        if (in[i] == '%' && i + 2 < in.size()) {
-            char d1 = in[i + 1];
-            char d2 = in[i + 2];
-            if (std::isxdigit(d1) && std::isxdigit(d2)) {
-                char b = (std::isdigit(d1) ? (d1 - '0') : (std::toupper(d1) - 'A' + 10)) << 4;
-                b |= (std::isdigit(d2) ? (d2 - '0') : (std::toupper(d2) - 'A' + 10));
-                res.push_back(b);
-                i += 2;
-            } else {
-                res.push_back(in[i]);
-            }
-        } else {
-            res.push_back(in[i]);
-        }
-    }
-    return res;
-}
+// KRDecodeURLComponent is header-only in KRCodecDecode.h so host tests can
+// compile the leftover unsigned-char ctype path without Harmony or md5/sha256.
 
 std::string KRBase64Encode(const std::string &in) {
     std::string out;
