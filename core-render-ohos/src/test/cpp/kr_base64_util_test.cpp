@@ -25,13 +25,15 @@ static void expect_eq(const char *name, const std::string &got, const std::strin
 
 int main() {
     // Known vector: Encode("hi") is aGk= (must not change Encode).
-    expect_eq("Encode(hi)", KRBase64Util::Encode("hi"), "aGk=");
+    // std::string disambiguates the string_view / const string& overloads.
+    expect_eq("Encode(hi)", KRBase64Util::Encode(std::string("hi")), "aGk=");
 
     // Leftover Decode copied Encode and re-encoded aGk= to YUdrPQ==.
-    expect_eq("Decode(aGk=)", KRBase64Util::Decode("aGk="), "hi");
+    expect_eq("Decode(aGk=)", KRBase64Util::Decode(std::string("aGk=")), "hi");
 
     // Round-trip through the public string overloads.
-    expect_eq("Decode(Encode(hello))", KRBase64Util::Decode(KRBase64Util::Encode("hello")), "hello");
+    expect_eq("Decode(Encode(hello))",
+              KRBase64Util::Decode(KRBase64Util::Encode(std::string("hello"))), "hello");
 
     if (g_failed != 0) {
         std::fprintf(stderr, "%d test(s) failed\n", g_failed);
