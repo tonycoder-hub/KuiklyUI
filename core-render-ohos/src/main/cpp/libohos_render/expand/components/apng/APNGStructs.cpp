@@ -14,6 +14,7 @@
  */
 
 #include "libohos_render/expand/components/apng/APNGStructs.h"
+#include "libohos_render/expand/components/apng/APNGBitmapBuffer.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -67,8 +68,7 @@ static OH_PixelmapNative *CreatePixelMap(std::shared_ptr<Frame> frame) {
 }
 
 static bool PixelmapToBitmapBuffer(OH_PixelmapNative *pixelmap, size_t bufferSize, std::vector<uint8_t> &buffer) {
-    buffer.clear();
-    buffer.reserve(bufferSize);
+    PrepareBitmapBuffer(buffer, bufferSize);
     Image_ErrorCode errCode = OH_PixelmapNative_ReadPixels(pixelmap, buffer.data(), &bufferSize);
     if (errCode != IMAGE_SUCCESS) {
         KR_LOG_ERROR << "ImageSourceNativeCTest sourceTest PixelMapToBitmapBuffer failed, errCode: " << errCode;
