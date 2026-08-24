@@ -94,10 +94,12 @@ util::Date KRCalendarModule::CalDate(util::Date &date, const std::string &op) {
         newDate.SetDate(originalValue + value);
         break;
     case DAY_OF_YEAR:
+        // SetDateOfYear writes tm_mon/tm_mday (mktime ignores tm_yday).
         originalValue = (opt == this->OP_SET) ? 0 : date.GetDateOfYear();
         newDate.SetDateOfYear(originalValue + value);
         break;
     case DAY_OF_WEEK:
+        // SetDateOfWeek applies tm_wday delta to tm_mday (mktime ignores tm_wday).
         originalValue = (opt == this->OP_SET) ? 0 : date.GetDateOfWeek();
         newDate.SetDateOfWeek(originalValue + value);
         break;
