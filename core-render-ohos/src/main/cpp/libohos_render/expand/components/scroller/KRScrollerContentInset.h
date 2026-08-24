@@ -17,19 +17,19 @@
 #define CORE_RENDER_OHOS_KRSCROLLERCONTENTINSET_H
 
 #include "libohos_render/foundation/KRCommon.h"
-#include "libohos_render/utils/KRStringUtil.h"
+#include "libohos_render/utils/KRSplitTokens.h"
 
 class KRScrollerContentInset {
  public:
     explicit KRScrollerContentInset(const KRAnyValue &value) {
-        auto content_inset_splits = kuikly::util::SplitString(value->toString(), ' ');
-        top = content_inset_splits[0]->toFloat();
-        start = content_inset_splits[1]->toFloat();
-        bottom = content_inset_splits[2]->toFloat();
-        end = content_inset_splits[3]->toFloat();
-        if (content_inset_splits.size() >= 5) {
-            animate = content_inset_splits[4]->toBool();
-        }
+        // leftover: SplitString on "10 20" / "" has <4 tokens. Pad missing
+        // top/start/bottom/end with 0 (see KRSplitTokens.h).
+        auto parts = kuikly::util::ParseContentInsetParts(value->toString());
+        top = parts.top;
+        start = parts.start;
+        bottom = parts.bottom;
+        end = parts.end;
+        animate = parts.animate;
     }
 
     bool animate = false;

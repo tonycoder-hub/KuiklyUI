@@ -22,6 +22,7 @@
 #include "libohos_render/foundation/KRBorderRadiuses.h"
 #include "libohos_render/foundation/KRSize.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
+#include "libohos_render/utils/KRSplitTokens.h"
 
 namespace kuikly {
 namespace util {

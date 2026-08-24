@@ -445,14 +445,19 @@ void UpdateNodeOverflow(ArkUI_NodeHandle node, int overflow) {
 }
 
 void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shadow) {
+    BoxShadowParts parts;
+    // leftover: short boxShadow has <4 tokens. Skip like iOS CSSBoxShadow /
+    // KRImageView capInsets instead of indexing [0]..[3].
+    if (!TryParseBoxShadowParts(css_box_shadow, parts)) {
+        return;
+    }
     auto nodeAPI = GetNodeApi();
-    auto splits = ConvertSplit(css_box_shadow, " ");
     auto dpi = KRConfig::GetDpi();
-    float x = ConvertToFloat(splits[0]) * dpi;
-    float y = ConvertToFloat(splits[1]) * dpi;
-    float radius = ConvertToFloat(splits[2]) * dpi;
-    uint32_t color = ConvertToHexColor(splits[3]);
-    int fill = splits.size() > 4 && splits[4] == "0" ? 0 : 1;
+    float x = parts.x * dpi;
+    float y = parts.y * dpi;
+    float radius = parts.radius * dpi;
+    uint32_t color = ConvertToHexColor(parts.color);
+    int fill = parts.fill ? 1 : 0;
     ArkUI_NumberValue value[] = {
         {.f32 = radius},
         {.i32 = 0},
@@ -467,11 +472,15 @@ void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shado
 }
 
 void SetTextShadow(OH_Drawing_TextShadow *shadow, const std::string &css_box_shadow) {
-    auto splits = ConvertSplit(css_box_shadow, " ");
-    float x = ConvertToFloat(splits[0]);
-    float y = ConvertToFloat(splits[1]);
-    float radius = ConvertToFloat(splits[2]);
-    uint32_t color = ConvertToHexColor(splits[3]);
+    BoxShadowParts parts;
+    // leftover: short text-shadow has <4 tokens. Skip instead of [0]..[3] OOB.
+    if (!TryParseBoxShadowParts(css_box_shadow, parts)) {
+        return;
+    }
+    float x = parts.x;
+    float y = parts.y;
+    float radius = parts.radius;
+    uint32_t color = ConvertToHexColor(parts.color);
     auto offset = OH_Drawing_PointCreate(x, y);
     OH_Drawing_SetTextShadow(shadow, color, offset, radius);
     OH_Drawing_PointDestroy(offset);
@@ -636,20 +645,25 @@ void UpdateNodeAccessibilityActions(ArkUI_NodeHandle node, const std::string &in
 }
 
 void UpdateNodeBorder(ArkUI_NodeHandle node, std::string borderStr) {
+    BorderParts parts;
+    // leftover: short border ("1", "1 solid") has <3 tokens. Skip instead of
+    // indexing width/style/color. 3-token "0 solid 0" reset stays valid.
+    if (!TryParseBorderParts(borderStr, parts)) {
+        return;
+    }
     auto nodeAPI = GetNodeApi();
-    auto splits = ConvertSplit(borderStr, " ");
-    auto boderWidth = ConvertToFloat(splits[0]);
+    auto boderWidth = parts.width;
     ArkUI_NumberValue value[] = {{.f32 = boderWidth}, {.f32 = boderWidth}, {.f32 = boderWidth}, {.f32 = boderWidth}};
     ArkUI_AttributeItem borderWidthItem = {value, 4};
     nodeAPI->setAttribute(node, NODE_BORDER_WIDTH, &borderWidthItem);
     {
-        auto hexColor = ConvertToHexColor(splits[2]);
+        auto hexColor = ConvertToHexColor(parts.color);
         ArkUI_NumberValue value[] = {{.u32 = hexColor}, {.u32 = hexColor}, {.u32 = hexColor}, {.u32 = hexColor}};
         ArkUI_AttributeItem borderColorItem = {value, 4};
         nodeAPI->setAttribute(node, NODE_BORDER_COLOR, &borderColorItem);
     }
     {
-        auto style = ConverToBorderStyle(splits[1]);  // style
+        auto style = ConverToBorderStyle(parts.style);  // style
 
         ArkUI_NumberValue value[] = {{.u32 = style}, {.u32 = style}, {.u32 = style}, {.u32 = style}};
         ArkUI_AttributeItem borderStyleItem = {value, 4};
