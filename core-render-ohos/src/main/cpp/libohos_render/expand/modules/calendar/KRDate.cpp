@@ -14,6 +14,7 @@
  */
 
 #include "KRDate.h"
+#include "KRDateParse.h"
 
 #include <chrono>
 
@@ -115,53 +116,38 @@ std::int64_t Date::Now() {
 }
 
 void Date::Parse(std::string &dateStr, std::string &formatStr) {
-    auto pos = formatStr.find("yyyy");
-    if (pos != std::string::npos) {
-        // 已格式化的日期字符串不包含引号，要减去格式字符串中的引号数量，以便找到该字段正确位置。
-        pos -= quoteCount(formatStr.substr(0, pos));
-        int year = std::stoi(dateStr.substr(pos, 4));
+    // Token slices are bounds-checked in TryParseDateField. Short / non-numeric
+    // leftover input skips that field (keeps existing Date members) instead of
+    // throwing from substr / stoi.
+    int year = 0;
+    if (TryParseDateField(dateStr, formatStr, "yyyy", 4, year)) {
         this->SetYear(year);
     }
-    pos = formatStr.find("YYYY");
-    if (pos != std::string::npos) {
-        pos -= quoteCount(formatStr.substr(0, pos));
-        int year = std::stoi(dateStr.substr(pos, 4));
+    if (TryParseDateField(dateStr, formatStr, "YYYY", 4, year)) {
         this->SetYear(year);
     }
-    pos = formatStr.find("MM");
-    if (pos != std::string::npos) {
-        pos -= quoteCount(formatStr.substr(0, pos));
-        int month = std::stoi(dateStr.substr(pos, 2)) - 1;  // 解析时，要将正常月份计数调整为从0开始
-        this->SetMonth(month);
+    int month = 0;
+    if (TryParseDateField(dateStr, formatStr, "MM", 2, month)) {
+        this->SetMonth(month - 1);  // 解析时，要将正常月份计数调整为从0开始
     }
-    pos = formatStr.find("dd");
-    if (pos != std::string::npos) {
-        pos -= quoteCount(formatStr.substr(0, pos));
-        int date = std::stoi(dateStr.substr(pos, 2));
+    int date = 0;
+    if (TryParseDateField(dateStr, formatStr, "dd", 2, date)) {
         this->SetDate(date);
     }
-    pos = formatStr.find("HH");
-    if (pos != std::string::npos) {
-        pos -= quoteCount(formatStr.substr(0, pos));
-        int hour = std::stoi(dateStr.substr(pos, 2));
+    int hour = 0;
+    if (TryParseDateField(dateStr, formatStr, "HH", 2, hour)) {
         this->SetHours(hour);
     }
-    pos = formatStr.find("mm");
-    if (pos != std::string::npos) {
-        pos -= quoteCount(formatStr.substr(0, pos));
-        int minute = std::stoi(dateStr.substr(pos, 2));
+    int minute = 0;
+    if (TryParseDateField(dateStr, formatStr, "mm", 2, minute)) {
         this->SetMinutes(minute);
     }
-    pos = formatStr.find("ss");
-    if (pos != std::string::npos) {
-        pos -= quoteCount(formatStr.substr(0, pos));
-        int second = std::stoi(dateStr.substr(pos, 2));
+    int second = 0;
+    if (TryParseDateField(dateStr, formatStr, "ss", 2, second)) {
         this->SetSeconds(second);
     }
-    pos = formatStr.find("SSS");
-    if (pos != std::string::npos) {
-        pos -= quoteCount(formatStr.substr(0, pos));
-        int num = std::stoi(dateStr.substr(pos, 3));
+    int num = 0;
+    if (TryParseDateField(dateStr, formatStr, "SSS", 3, num)) {
         this->SetMilliseconds(num);
     }
 }
@@ -175,19 +161,7 @@ void Date::Parse(std::string &dateStr, std::string &formatStr) {
  * @return
  */
 std::string::size_type Date::quoteCount(std::string subString) {
-    std::string::size_type count = 0;
-    auto length = subString.length();
-    for (std::string::size_type i = 0; i < length; i++) {
-        if (subString.at(i) == '\'') {
-            if ((i + 1) < length && subString.at(i + 1) == '\'') {
-                count++;  //  双引号计数。'' is treated as a single quote regardless of being in a quoted section.
-                i++;
-                continue;
-            }
-            count++;  //  单引号计数
-        }
-    }
-    return count;
+    return DateParseQuoteCount(subString);
 }
 
 }  //  namespace util
