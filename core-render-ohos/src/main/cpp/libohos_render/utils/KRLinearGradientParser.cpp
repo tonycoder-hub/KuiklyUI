@@ -17,32 +17,12 @@
 
 #include <native_drawing/drawing_point.h>
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/utils/KRLinearGradientCssParse.h"
 
 namespace kuikly {
 namespace util {
 bool KRLinearGradientParser::ParseFromCssLinearGradient(const std::string &cssGradient) {
-    const std::string lineargradientPrefix = "linear-gradient(";
-    if (cssGradient.find(lineargradientPrefix) != 0) {
-        return false;
-    }
-    std::string cssGradientSubstring =
-        cssGradient.substr(lineargradientPrefix.length(), cssGradient.length() - lineargradientPrefix.length() - 1);
-    std::vector<std::string> splits = ConvertSplit(cssGradientSubstring, ",");
-    direction = std::stoi(splits[0]);
-
-    colors.clear();
-    locations.clear();
-
-    for (size_t i = 1; i < splits.size(); ++i) {
-        std::string colorStopStr = splits[i];
-        std::vector<std::string> colorAndStop = ConvertSplit(colorStopStr, " ");
-        if (colorAndStop.size() >= 2) {
-            colors.push_back(ConvertToHexColor(colorAndStop[0]));
-            locations.push_back(std::stof(colorAndStop[1]));
-        }
-    }
-
-    return true;
+    return linear_gradient_detail::ParseFromCssLinearGradient(cssGradient, direction, colors, locations);
 }
 const int KRLinearGradientParser::GetArkUIDirection() const {
     switch (direction) {
