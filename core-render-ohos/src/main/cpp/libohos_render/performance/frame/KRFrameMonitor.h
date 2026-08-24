@@ -18,6 +18,7 @@
 
 #include "libohos_render/performance/KRMonitor.h"
 #include "libohos_render/performance/frame/KRFrameData.h"
+#include "libohos_render/performance/frame/KRFrameMonitorFlags.h"
 #include <native_vsync/native_vsync.h>
 #include <string>
 #include <mutex>
@@ -49,9 +50,7 @@ private:
     
     KRFrameData frame_data_;
     std::mutex mutex_;
-    bool is_started_ = false;
-    bool is_resumed_ = false;
-    long long last_frame_time_nanos_ = 0;
+    KRFrameMonitorFlags flags_;
     long long pending_duration_nanos_ = 0;
     OH_NativeVSync* native_vsync_ = nullptr;
 };
