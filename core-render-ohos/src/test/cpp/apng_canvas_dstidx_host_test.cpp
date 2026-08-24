@@ -59,9 +59,12 @@ static bool LeftoverWriteWalksPast(int left, int top, int frameWidth, int frameH
 
 int main() {
     // leftover example: left=8, width=5 on W=10 walks past the buffer.
+    // On a 1-row canvas the leftover dstIdx for x=4 is 12*4=48, past 40 bytes.
+    // On a taller canvas the same x wraps into the next row (wrong pixels)
+    // and only the last row walks off the end.
     {
         const int canvasW = 10;
-        const int canvasH = 4;
+        const int canvasH = 1;
         const int left = 8;
         const int top = 0;
         const int fw = 5;
@@ -85,6 +88,12 @@ int main() {
     {
         expect_true("OOB top=8 height=5 on H=10 detected", !IsFrameRectInCanvas(0, 8, 1, 5, 10, 10));
         expect_true("leftover top=8 height=5 walks past", LeftoverWriteWalksPast(0, 8, 1, 5, 10, 10));
+    }
+
+    // leftover last-row wrap: left=8,width=5 on W=10,H=4 writes past the last row.
+    {
+        expect_true("leftover last-row left=8 width=5 walks past", LeftoverWriteWalksPast(8, 3, 5, 1, 10, 4));
+        expect_true("OOB last-row left=8 width=5 detected", !IsFrameRectInCanvas(8, 3, 5, 1, 10, 4));
     }
 
     // leftover negative origin (uint32 overflow into signed int).
