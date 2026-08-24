@@ -12,22 +12,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef CORE_RENDER_OHOS_KRSTRINGUTIL_H
-#define CORE_RENDER_OHOS_KRSTRINGUTIL_H
-#include <string>
-#include <vector>
-#include "KRCstringEqual.h"
-#include "libohos_render/foundation/KRCommon.h"
+#ifndef CORE_RENDER_OHOS_KRCSTRINGEQUAL_H
+#define CORE_RENDER_OHOS_KRCSTRINGEQUAL_H
+
+#include <cstring>
 
 namespace kuikly {
 namespace util {
-std::vector<std::string_view> SplitStringView(const std::string_view &str, std::string separator);
-std::vector<std::string> SplitString(const std::string &str, std::string separator);
 
-bool isEqual(const std::string &str1, const char *str2);
-
-std::vector<KRAnyValue> SplitString(const std::string &str, char delimiter);
+// C-string equality with NULL polarity: both-null is equal, xor-null is not.
+// Header-only so host tests can compile without Harmony NDK headers.
+inline bool isEqual2(const char *str1, const char *str2) {
+    if (!str1 || !str2) {
+        return str1 == str2;
+    }
+    return std::strcmp(str1, str2) == 0;
+}
 
 }  // namespace util
 }  // namespace kuikly
-#endif  // CORE_RENDER_OHOS_KRSTRINGUTIL_H
+
+#endif  // CORE_RENDER_OHOS_KRCSTRINGEQUAL_H

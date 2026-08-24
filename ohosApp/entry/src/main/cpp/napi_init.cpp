@@ -125,14 +125,10 @@ static napi_value SetResfileDir(napi_env env, napi_callback_info info) {
 }
 
 static bool isEqual2(const char *str1, const char *str2) {
-    if ((str1 == NULL && str2) || (str1 && str2 == NULL) || (str1 == NULL && str2 == NULL)) {
-        return false;
+    if (!str1 || !str2) {
+        return str1 == str2;
     }
-    if (std::strcmp(str1, str2) == 0) {
-        return true;
-    } else {
-        return false;
-    }
+    return std::strcmp(str1, str2) == 0;
 }
 
 static bool isEqual(const std::string &str1, const char *str2) {
