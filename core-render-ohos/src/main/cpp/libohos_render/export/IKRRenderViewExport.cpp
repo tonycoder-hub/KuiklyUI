@@ -20,6 +20,7 @@
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
 #include "libohos_render/manager/KRWeakObjectManager.h"
+#include "libohos_render/utils/KRFrameMemcpy.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -204,9 +205,11 @@ void IKRRenderViewExport::ToSetProp(const std::string &prop_key, const KRAnyValu
             didHanded = ToSetBaseProp(prop_key, prop_value, event_call_back);  // 基础属性设置分发处理
         }
         if (isFrameProp) {
-            const std::string &s = prop_value->toString();
-            memcpy(&frame_, s.data(), s.size());
-            SetRenderViewFrame(frame_);
+            // leftover: memcpy(&frame_, s.data(), s.size()) smashed KRRect
+            // when the payload was not exactly 4 floats.
+            if (kuikly::util::TryCopyFrameFloats(prop_value->toString(), frame_)) {
+                SetRenderViewFrame(frame_);
+            }
         }
     }
     if (!didHanded && base_event_handler_ != nullptr) {
