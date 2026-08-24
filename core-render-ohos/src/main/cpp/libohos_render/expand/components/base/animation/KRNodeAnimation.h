@@ -18,10 +18,10 @@
 
 #include "libohos_render/expand/components/base/KRBasePropsHandler.h"
 #include "libohos_render/expand/components/base/animation/IKRNodeAnimation.h"
+#include "libohos_render/expand/components/base/animation/KRNodeAnimationParse.h"
 #include "libohos_render/expand/components/base/animation/KRNodeNativeAnimationV2.h"
 #include "libohos_render/expand/components/base/animation/KRNodePlainAnimation.h"
 #include "libohos_render/expand/components/base/animation/KRNodeSpringAnimation.h"
-#include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 
 class KRNodeAnimation : public IKRNodeAnimation {
@@ -213,16 +213,6 @@ class KRNodeAnimation : public IKRNodeAnimation {
 #endif
 
  private:
-    // 动画配置字符串中各个属性的位置索引，空格分割
-    static const int ANIMATION_TYPE_INDEX = 0;
-    static const int TIMING_FUNC_TYPE_INDEX = 1;
-    static const int DURATION_INDEX = 2;
-    static const int DAMPING_INDEX = 3;
-    static const int VELOCITY_INDEX = 4;
-    static const int DELAY_INDEX = 5;
-    static const int REPEAT_INDEX = 6;
-    static const int ANIMATION_KEY_INDEX = 7;
-
     KRNodeAnimationOperationEndCallback operationCallback_;
 
     /**
@@ -230,23 +220,17 @@ class KRNodeAnimation : public IKRNodeAnimation {
      * @param animation
      */
     void parseAnimation(const std::string &animation) {
-        std::vector<std::string> animationSpilt = kuikly::util::ConvertSplit(animation, " ");
-        animationType = std::stoi(animationSpilt[ANIMATION_TYPE_INDEX]);
-        timingFuncType = std::stoi(animationSpilt[TIMING_FUNC_TYPE_INDEX]);
-        duration = std::stof(animationSpilt[DURATION_INDEX]);
-        damping = std::stof(animationSpilt[DAMPING_INDEX]);
-        velocity = std::stof(animationSpilt[VELOCITY_INDEX]);
-        // 兼容旧版本
-        if (animationSpilt.size() > DELAY_INDEX) {
-            delay = std::stof(animationSpilt[DELAY_INDEX]);
-        }
-        if (animationSpilt.size() > REPEAT_INDEX) {
-            repeatForever = std::stoi(animationSpilt[REPEAT_INDEX]) == 1;
-        }
-        if (animationSpilt.size() > ANIMATION_KEY_INDEX) {
-            animationKey = animationSpilt[ANIMATION_KEY_INDEX];
-        }
-        nativeV2 = KRNodeNativeAnimationV2::Parse(animationSpilt);
+        const auto parsed = kuikly::util::ParseNodeAnimation(animation);
+        animationType = parsed.animationType;
+        timingFuncType = parsed.timingFuncType;
+        duration = parsed.duration;
+        damping = parsed.damping;
+        velocity = parsed.velocity;
+        delay = parsed.delay;
+        repeatForever = parsed.repeatForever;
+        animationKey = parsed.animationKey;
+        // Keep upstream NativeAnimationV2 tokens (feat #1633) after safe base-field parse.
+        nativeV2 = KRNodeNativeAnimationV2::Parse(kuikly::util::SplitAnimationTokens(animation, " "));
     }
 
     /**
