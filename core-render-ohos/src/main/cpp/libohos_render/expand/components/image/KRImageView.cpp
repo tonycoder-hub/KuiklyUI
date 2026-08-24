@@ -15,7 +15,7 @@
 
 #include "libohos_render/expand/components/image/KRImageView.h"
 
-#include "KRCapInsetsParse.h"
+#include "libohos_render/expand/components/image/KRCapInsetsParse.h"
 #include <deviceinfo.h>
 #include <resourcemanager/ohresmgr.h>
 #include <sstream>
