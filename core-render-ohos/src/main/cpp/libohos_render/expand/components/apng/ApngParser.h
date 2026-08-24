@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 #include "libohos_render/expand/components/apng/APNGStructs.h"
+#include "libohos_render/expand/components/apng/ApngParserBuffer.h"
 
 class DataView {
  public:
@@ -107,23 +108,11 @@ static uint32_t crc32(const std::vector<uint8_t> &bytes, size_t start = 0, size_
     return ~crc;
 }
 
-static std::string readString(const std::vector<uint8_t> &bytes, size_t off, size_t length) {
-    std::string result;
-    for (size_t i = 0; i < length; ++i) {
-        result.push_back(static_cast<char>(bytes[off + i]));
-    }
-    return result;
-}
-
 static std::vector<uint8_t> makeStringArray(const std::string &str) {
     std::vector<uint8_t> result(str.begin(), str.end());
     return result;
 }
 
-static std::vector<uint8_t> subBuffer(const std::vector<uint8_t> &bytes, size_t start, size_t length) {
-    std::vector<uint8_t> result(bytes.begin() + start, bytes.begin() + start + length);
-    return result;
-}
 static std::vector<uint8_t> makeChunkBytes(const std::string &type, const std::vector<uint8_t> &dataBytes) {
     std::size_t crcLen = type.length() + dataBytes.size();
     std::vector<uint8_t> bytes(crcLen + 8);
@@ -146,21 +135,6 @@ static std::vector<uint8_t> makeChunkBytes(const std::string &type, const std::v
 static std::vector<uint8_t> makeDWordArray(uint32_t x) {
     return std::vector<uint8_t>{static_cast<uint8_t>((x >> 24) & 0xFF), static_cast<uint8_t>((x >> 16) & 0xFF),
                                 static_cast<uint8_t>((x >> 8) & 0xFF), static_cast<uint8_t>(x & 0xFF)};
-}
-
-static void eachChunk(std::vector<uint8_t> &bytes,
-                      std::function<bool(const std::string &, std::vector<uint8_t> &, size_t, size_t)> callback) {
-    size_t off = 8;
-    std::string type;
-    size_t length = 0;
-    bool res = false;
-    auto dv = DataView(bytes);
-    do {
-        length = dv.getUint32(off);
-        type = readString(bytes, off + 4, 4);
-        res = callback(type, bytes, off, length);
-        off += (12 + length);
-    } while (res != false && type != "IEND" && off < bytes.size());
 }
 
 static void parseAPNG(std::vector<uint8_t> &buffer, std::function<void(std::shared_ptr<APNG>)> completion) {
@@ -230,7 +204,10 @@ static void parseAPNG(std::vector<uint8_t> &buffer, std::function<void(std::shar
                 frame->disposeOp = 1;
             }
         } else if (type == "fdAT") {
-            frame->dataParts.push_back(subBuffer(bytes, off + 8 + 4, static_cast<size_t>(length - 4)));
+            std::vector<uint8_t> payload;
+            if (tryFdATPayload(bytes, off, length, payload)) {
+                frame->dataParts.push_back(std::move(payload));
+            }
         } else if (type == "IDAT") {
             frame->dataParts.push_back(subBuffer(bytes, off + 8, length));
         } else if (type == "IEND") {
