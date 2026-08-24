@@ -348,6 +348,9 @@ static ArkUI_ScrollNestedMode ParseOption(const std::string &option) {
 bool KRScrollerView::SetNestedScroll(const KRAnyValue &value) {
     const std::string &str = value->toString();
     auto paramObj = kuikly::util::JSONObject::Parse(str);
+    if (!paramObj) {
+        return false;
+    }
     const std::string &forwardStr = paramObj->GetString(kPropKeyNestedScrollForward);
     const std::string &backwardStr = paramObj->GetString(kPropKeyNestedScrollBackward);
     ArkUI_ScrollNestedMode forward = ParseOption(forwardStr);
