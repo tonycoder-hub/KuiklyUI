@@ -59,9 +59,13 @@ void APNGAnimateView::Destroy() {
 
 APNGAnimateView::~APNGAnimateView() {
     Destroy();
-    KRGCDQueue::GetInstance().DispatchAsync([apng = apng_] {
-        apng->width;  // sub thread gc
-    });
+    if (apng_) {
+        KRGCDQueue::GetInstance().DispatchAsync([apng = apng_] {
+            if (apng) {
+                apng->width;  // sub thread gc
+            }
+        });
+    }
 }
 
 void APNGAnimateView::SetAutoPlay(bool auto_play) {
