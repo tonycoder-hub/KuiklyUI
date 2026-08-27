@@ -33,20 +33,35 @@ class KRRenderContextParams {
         this->page_data_ = page_data;
         this->config_ = std::make_shared<KRConfig>(configJsonStr);
 
-        auto page_data_map = this->page_data_->toMap();
-        int page_data_mode = page_data_map["executeMode"]->toInt();
-        std::unordered_map<int, KRRenderExecuteModeCreator> mode_creator_register =
-            KRRenderExecuteMode::GetExecuteModeCreatorRegister();
-        if (mode_creator_register.find(page_data_mode) != mode_creator_register.end()) {
-            auto creator = mode_creator_register[page_data_mode];
-            execute_mode_ = creator();
-        } else {
-            std::shared_ptr<KRRenderExecuteMode> defaultMode = std::make_shared<KRRenderNativeMode>();
-            if (defaultMode->GetMode() == page_data_mode) {
-                execute_mode_ = defaultMode;
+        if (this->page_data_) {
+            auto page_data_map = this->page_data_->toMap();
+            auto mode_it = page_data_map.find("executeMode");
+            if (mode_it != page_data_map.end() && mode_it->second) {
+                int page_data_mode = mode_it->second->toInt();
+                std::unordered_map<int, KRRenderExecuteModeCreator> mode_creator_register =
+                    KRRenderExecuteMode::GetExecuteModeCreatorRegister();
+                if (mode_creator_register.find(page_data_mode) != mode_creator_register.end()) {
+                    auto creator = mode_creator_register[page_data_mode];
+                    execute_mode_ = creator();
+                } else {
+                    std::shared_ptr<KRRenderExecuteMode> defaultMode = std::make_shared<KRRenderNativeMode>();
+                    if (defaultMode->GetMode() == page_data_mode) {
+                        execute_mode_ = defaultMode;
+                    }
+                }
+            } else {
+                execute_mode_ = std::make_shared<KRRenderNativeMode>();
             }
+            auto code_it = page_data_map.find("contextCode");
+            if (code_it != page_data_map.end() && code_it->second) {
+                context_code_ = code_it->second->toString();
+            } else {
+                context_code_ = "";
+            }
+        } else {
+            execute_mode_ = std::make_shared<KRRenderNativeMode>();
+            context_code_ = "";
         }
-        context_code_ = page_data_map["contextCode"]->toString();
     }
     const std::string &PageName() const {
         return page_name_;
@@ -64,7 +79,15 @@ class KRRenderContextParams {
         return page_data_;
     }
     const std::shared_ptr<KRRenderValue> PageParam() const {
-        return page_data_->toMap().find("param")->second;
+        if (!page_data_) {
+            return nullptr;
+        }
+        auto map = page_data_->toMap();
+        auto it = map.find("param");
+        if (it == map.end()) {
+            return nullptr;
+        }
+        return it->second;
     }
     const std::shared_ptr<KRConfig> &Config() const {
         return config_;
