@@ -55,12 +55,17 @@ KRSize KRGradientRichTextShadow::CalculateRenderViewSize(double constraint_width
 
 void KRGradientRichTextShadow::DidBuildTextStyle(OH_Drawing_TextStyle *textStyle, double dpi) {
     if (calculate_width_ != 0 && calculate_height_ != 0 && text_linearGradient_ != nullptr) {
+        // leftover: Parse can succeed with no color-stop pair (empty colors/locations).
+        // 0-size VLA is UB; CreateLinearGradient(..., count=0) is not valid.
+        // Do not OH_Drawing_ShaderEffectDestroy — it crashes on API 13/17.
+        const std::vector<uint32_t> &colors = text_linearGradient_->GetColors();
+        const std::vector<float> &locations = text_linearGradient_->GetLocations();
+        if (colors.empty() || locations.empty()) {
+            return;
+        }
         // 文字渐变
         auto brush = OH_Drawing_BrushCreate();
         OH_Drawing_BrushSetAntiAlias(brush, true);  // 抗锯齿
-        // 获取 colors 和 locations
-        const std::vector<uint32_t> &colors = text_linearGradient_->GetColors();
-        const std::vector<float> &locations = text_linearGradient_->GetLocations();
 
         // 创建 C 风格数组
         uint32_t colorsArray[colors.size()];
