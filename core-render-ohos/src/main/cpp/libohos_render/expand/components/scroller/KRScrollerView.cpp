@@ -16,6 +16,7 @@
 #include <memory>
 
 #include "libohos_render/expand/components/scroller/KRScrollerView.h"
+#include "libohos_render/expand/components/scroller/KRContentOffsetParse.h"
 
 #include <cfloat>
 #include <cmath>
@@ -428,13 +429,19 @@ bool KRScrollerView::RegisterWillDragEndEvent(const KRRenderCallback event_callb
  * @param value
  */
 void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
-    auto content_offset_splits = kuikly::util::SplitString(value->toString(), ' ');
-    auto offset_x = content_offset_splits[0]->toFloat();
-    auto offset_y = content_offset_splits[1]->toFloat();
-    auto animate = content_offset_splits[2]->toBool();
-    auto duration = content_offset_splits.size() > 3 ? content_offset_splits[3]->toInt() : 0;
-    auto damping = content_offset_splits.size() > 4 ? content_offset_splits[4]->toFloat() : 0;
-    auto curve = content_offset_splits.size() > 6 ? content_offset_splits[6]->toInt() : 0;
+    // Leftover: [0]/[1]/[2] were unguarded after SplitString. iOS uses
+    // count > 2 for animate, so "10 20" is valid there and OOB here.
+    // #1663 covered inset/border/shadow, not this method.
+    kuikly::util::KRContentOffsetArgs args;
+    if (!kuikly::util::ParseContentOffset(value->toString(), args)) {
+        return;
+    }
+    auto offset_x = args.offset_x;
+    auto offset_y = args.offset_y;
+    auto animate = args.animate;
+    auto duration = args.duration;
+    auto damping = args.damping;
+    auto curve = args.curve;
 
     if (!is_set_frame_) {
         first_offset_x_ = offset_x;
