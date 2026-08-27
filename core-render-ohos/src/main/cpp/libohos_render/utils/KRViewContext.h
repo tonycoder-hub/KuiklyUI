@@ -17,6 +17,19 @@
 #define CORE_RENDER_OHOS_KRVIEWCONTEXT_H
 #include <string>
 
+// Leftover: KRViewContext(instance_id, tag) used bare std::stoi.
+// Empty / non-numeric / out-of-range ids throw std::invalid_argument
+// or std::out_of_range (uncaught → crash). Sibling KRRenderView uses
+// atoi (no throw). No prior leftover PR covers this constructor.
+// Header-only so host g++ can compile without Harmony / ArkUI.
+inline int ParseInstanceId(const std::string &instance_id) {
+    try {
+        return std::stoi(instance_id);
+    } catch (...) {
+        return 0;
+    }
+}
+
 struct KRViewContext final{
 private:
     union Boxing{
@@ -29,7 +42,7 @@ private:
     };
 public:
     KRViewContext(const std::string& instance_id, int tag){
-        box_.instance = std::stoi(instance_id);
+        box_.instance = ParseInstanceId(instance_id);
         box_.tag = tag;
     }
     constexpr KRViewContext(const void *context){
