@@ -508,8 +508,15 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             if(cjson == nullptr){
                 return Map();
             }
+            if (!cJSON_IsObject(cjson)) {
+                cJSON_Delete(cjson);
+                return Map();
+            }
             Map map;
             for (cJSON *item = cjson->child; item != NULL; item = item->next) {
+                if (item->string == nullptr) {
+                    continue;
+                }
                 map[item->string] = fromJsonValue(item);
             }
             cJSON_Delete(cjson);
