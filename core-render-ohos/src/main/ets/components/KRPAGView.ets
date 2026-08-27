@@ -130,10 +130,14 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
       }
     } else if (method == KRPAGView.PROP_METHOD_SET_PROGRESS) {
       if (typeof params === 'string') {
-        const json: Record<string, Object> = JSON.parse(params as string) as Record<string, Object>;
-        const value = json['value'] as number;
-        if (value !== undefined) {
-          this.controller?.setProgress(value);
+        try {
+          const json: Record<string, Object> = JSON.parse(params as string) as Record<string, Object>;
+          const value = json['value'] as number;
+          if (typeof value === 'number' && Number.isFinite(value)) {
+            this.controller?.setProgress(value);
+          }
+        } catch (e) {
+          console.log(`KRPAGView setProgress error ${e}`);
         }
       }
     } else {
