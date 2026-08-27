@@ -80,6 +80,9 @@ export class KRSnapshotModule extends KuiklyRenderBaseModule {
           if (type == 'file') {
             KRPixelMapUtil.toFile(resultParam.path, data).then((file) => {
               callback([resultParam, new ArrayBuffer(1)]);
+            }).catch((err: Error) => {
+              resultParam.message = (err instanceof Error ? err.message : JSON.stringify(err)) ?? '';
+              callback([resultParam, new ArrayBuffer(1)]);
             });
             return;
           }
@@ -89,7 +92,9 @@ export class KRSnapshotModule extends KuiklyRenderBaseModule {
             resultParam.drawableDescriptor = drawableDesciptor;
             resultParam.pixelMap = data;
             callback([resultParam, new ArrayBuffer(1)]);
-            KRPixelMapUtil.toFile(resultParam.path, data);
+            KRPixelMapUtil.toFile(resultParam.path, data).catch((err: Error) => {
+              KRRenderLog.i('KRSnapshotModule', `complete error message: ${(err instanceof Error ? err.message : JSON.stringify(err)) ?? ''}`);
+            });
             return;
           }
         }
