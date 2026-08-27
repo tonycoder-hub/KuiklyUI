@@ -167,12 +167,19 @@ void KRTapGestureEventHandler::OnGestureEvent(ArkUI_GestureEvent *event) {
             current_tap_count_++;
             if (current_tap_count_ == 1) {
                 last_tap_down_time_stamp_ = CurrentTimeStamp();
+                auto weak_self = std::weak_ptr<KRTapGestureEventHandler>(
+                    std::static_pointer_cast<KRTapGestureEventHandler>(shared_from_this()));
                 KRMainThread::RunOnMainThread(
-                    [this, event] {
-                        if (current_tap_count_ == 1) {
-                            gesture_callback_(node_, tap_event_data_, KRGestureEventType::kClick);
+                    [weak_self] {
+                        auto self = weak_self.lock();
+                        if (!self) {
+                            return;
                         }
-                        Reset();
+                        if (self->current_tap_count_ == 1) {
+                            self->gesture_callback_(self->node_, self->tap_event_data_,
+                                                    KRGestureEventType::kClick);
+                        }
+                        self->Reset();
                     },
                     250);
             } else if (current_tap_count_ == 2) {
