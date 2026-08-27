@@ -21,6 +21,8 @@
 #include <arkui/native_node_napi.h>
 #include <multimedia/image_framework/image_packer_mdk.h>
 #include <multimedia/image_framework/image_pixel_map_mdk.h>
+#include <cstdint>
+#include <cstdlib>
 #include <unistd.h>
 
 #include "libohos_render/foundation/KRCommon.h"
@@ -107,19 +109,61 @@ bool KRSnapshotManager::SetCachedSnapshotToNode(ArkUI_NodeHandle node, const std
     return false;
 }
 
+// leftover: ProcessSnapshotResultWithDataType used `size = width * height * 4` then
+// malloc(size) with no overflow/zero/null check. Same saturate as host-test
+// KRSnapshotDataUriComputePackedSize (NDK cannot host-compile this cpp).
+static bool ComputeDataUriPackedSize(uint32_t width, uint32_t height, size_t *out_size) {
+    if (out_size == nullptr) {
+        return false;
+    }
+    if (width == 0 || height == 0) {
+        return false;
+    }
+    const size_t w = static_cast<size_t>(width);
+    const size_t h = static_cast<size_t>(height);
+    if (w > SIZE_MAX / h) {
+        return false;
+    }
+    const size_t pixels = w * h;
+    if (pixels > SIZE_MAX / 4) {
+        return false;
+    }
+    *out_size = pixels * 4;
+    return true;
+}
+
 struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWithDataType(
     napi_env env, napi_value pixelMap, const std::string &path, const std::string &pathUri,
     ArkUI_DrawableDescriptor *drawableDescriptorPtr, std::weak_ptr<IKRRenderViewExport> weak_view) {
     struct ResultData resultData;
+    resultData.code = -1;
+
     NativePixelMap *nativePixelMap = OH_PixelMap_InitNativePixelMap(env, pixelMap);
+    if (nativePixelMap == nullptr) {
+        resultData.message = "InitNativePixelMap failed";
+        return resultData;
+    }
     OhosPixelMapInfos info;
-    OH_PixelMap_GetImageInfo(nativePixelMap, &info);
+    int infoErr = OH_PixelMap_GetImageInfo(nativePixelMap, &info);
+    if (infoErr != 0) {
+        resultData.message = "GetImageInfo failed";
+        return resultData;
+    }
+
+    size_t size = 0;
+    if (!ComputeDataUriPackedSize(info.width, info.height, &size)) {
+        resultData.message = "invalid pixel map size";
+        return resultData;
+    }
+    uint8_t *outData = reinterpret_cast<uint8_t *>(malloc(size));
+    if (outData == nullptr) {
+        resultData.message = "malloc failed";
+        return resultData;
+    }
+
     struct ImagePacker_Opts_ opts;
     opts.format = "image/png";
     opts.quality = 80;
-
-    size_t size = info.width * info.height * 4;
-    uint8_t *outData = reinterpret_cast<uint8_t *>(malloc(size));
 
     napi_value packer;
     OH_ImagePacker_Create(env, &packer);
@@ -259,8 +303,14 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                         if (auto root = strongView->GetRootView().lock()) {
                             auto snapshotManager = root->GetSnapshotManager();
                             if (type == "dataUri") {
-                                resultData = snapshotManager->ProcessSnapshotResultWithDataType(
-                                    env, pixelMap, "", "", drawableDescriptorPtr, weak_view);
+                                // leftover: drawableDescriptor was null-checked; pixelMap was not.
+                                if (arkTs.IsNull(pixelMap) || arkTs.IsUndefined(pixelMap)) {
+                                    resultData.code = -1;
+                                    resultData.message = "pixelMap is null or undefined";
+                                } else {
+                                    resultData = snapshotManager->ProcessSnapshotResultWithDataType(
+                                        env, pixelMap, "", "", drawableDescriptorPtr, weak_view);
+                                }
                             } else if (type == "cacheKey") {
                                 napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
                                 pathStr = arkTs.GetString(path);
