@@ -53,6 +53,18 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       case KRNetworkModule.METHOD_HTTP_REQUEST:
         return this.httpRequest(params, null, callback);
       case KRNetworkModule.METHOD_HTTP_REQUEST_BINARY:
+        if (!Array.isArray(params) || (params as Array<KRAny>).length < 1) {
+          if (callback) {
+            const errmsg = `invalid httpRequestBinary params: ${params}`;
+            KRRenderLog.e("NetworkModule", errmsg);
+            let resultObject: Record<string, string> = {};
+            resultObject['errorMsg'] = errmsg;
+            resultObject['success'] = "0";
+            resultObject['statusCode'] = '-1000';
+            callback(resultObject);
+          }
+          return null;
+        }
         const args = params as Array<KRAny>;
         return this.httpRequest(args[0], args[1] as Int8Array, callback);
       default:
