@@ -74,9 +74,12 @@ export class KRNotifyModule extends KuiklyRenderBaseModule {
   }
 
   onDestroy(): void {
-    Object.keys(this.subscribersMap).forEach((key) => {
-      emitter.off(key, this.globalCallback!);
-    });
+    const cb = this.globalCallback;
+    if (cb) {
+      Object.keys(this.subscribersMap).forEach((key) => {
+        emitter.off(key, cb);
+      });
+    }
     this.subscribersMap = {};
     this.globalCallback = null;
   }
@@ -86,7 +89,13 @@ export class KRNotifyModule extends KuiklyRenderBaseModule {
       return;
     }
 
-    let paramsObj: KRAddNotifyParams = JSON.parse(params);
+    let paramsObj: KRAddNotifyParams;
+    try {
+      paramsObj = JSON.parse(params);
+    } catch (e) {
+      console.info(`NotifyModule: addNotify error ${e}`);
+      return;
+    }
 
     const callbackWrappers = this.subscribersMap[paramsObj.eventName];
     if (callbackWrappers) {
@@ -119,7 +128,13 @@ export class KRNotifyModule extends KuiklyRenderBaseModule {
     if (params == null) {
       return;
     }
-    let paramsObj: KRRemoveNotifyParams = JSON.parse(params);
+    let paramsObj: KRRemoveNotifyParams;
+    try {
+      paramsObj = JSON.parse(params);
+    } catch (e) {
+      console.info(`NotifyModule: removeNotify error ${e}`);
+      return;
+    }
     let callbackWrappers = this.subscribersMap[paramsObj.eventName];
     if (callbackWrappers) {
       const index = callbackWrappers.findIndex((value) => {
@@ -128,7 +143,9 @@ export class KRNotifyModule extends KuiklyRenderBaseModule {
       if (index > -1) {
         callbackWrappers.splice(index, 1);
         if (callbackWrappers.length === 0) {
-          emitter.off(paramsObj.eventName, this.globalCallback!);
+          if (this.globalCallback) {
+            emitter.off(paramsObj.eventName, this.globalCallback);
+          }
           this.subscribersMap[paramsObj.eventName] = null;
         }
       }
@@ -140,7 +157,13 @@ export class KRNotifyModule extends KuiklyRenderBaseModule {
       return;
     }
 
-    let paramsObj: KRPostNotifyParams = JSON.parse(params);
+    let paramsObj: KRPostNotifyParams;
+    try {
+      paramsObj = JSON.parse(params);
+    } catch (e) {
+      console.info(`NotifyModule: postNotify error ${e}`);
+      return;
+    }
 
     emitter.emit(paramsObj.eventName, {
       data: {
