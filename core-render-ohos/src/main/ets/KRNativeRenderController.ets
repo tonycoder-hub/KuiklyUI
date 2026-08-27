@@ -201,8 +201,11 @@ export class KRNativeRenderController {
     }
     this.updateSafeInsetsHandler = setTimeout(() => {
       this.updateSafeInsetsHandler = 0;
+      if (!this.windowClass) {
+        return;
+      }
       try {
-        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
+        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass));
       } catch (e) {
         KRRenderLog.e('Window', `Error obtaining safearea, code:${e.code}`);
       }
@@ -268,13 +271,15 @@ export class KRNativeRenderController {
     }
 
     if (!imeMode) {
-      const winRect = this.windowClass!.getWindowProperties().windowRect;
-      this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
-      this.windowId = this.windowClass!.getWindowProperties().id + "";
-      KRNativeManager.getInstance().onLastWindow(this.windowClass!);
-      this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
-      this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
-      this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
+      if (this.windowClass) {
+        const winRect = this.windowClass.getWindowProperties().windowRect;
+        this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
+        this.windowId = this.windowClass.getWindowProperties().id + "";
+        KRNativeManager.getInstance().onLastWindow(this.windowClass);
+        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass));
+        this.windowClass.on('avoidAreaChange', this.avoidAreaListener);
+        this.windowClass.on('windowSizeChange', this.onWindowSizeChanged);
+      }
     }
   }
 
