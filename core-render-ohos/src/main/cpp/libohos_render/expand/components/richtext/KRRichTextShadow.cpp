@@ -254,6 +254,9 @@ void KRFontCollectionWrapper::MarkFontRegistered(const std::string& fontFamily) 
 
 void KRFontCollectionWrapper::RegisterCustomFont(NativeResourceManager *resMgr,
                                                   const std::string &fontFamily) {
+    if (fontFamily.empty() || resMgr == nullptr) {
+        return;
+    }
     auto fontAdapters = KRFontAdapterManager::GetInstance()->AllAdapters();
     auto adapter = fontAdapters.find(fontFamily);
     if (adapter != fontAdapters.end() && !IsFontRegistered(fontFamily)) {
@@ -267,11 +270,17 @@ void KRFontCollectionWrapper::RegisterCustomFont(NativeResourceManager *resMgr,
             if (isRawFilePath(std::string(fontSrc))) {
                 auto newRawPath = fontStrString.substr(strlen(kRawFilePrefix));
                 RawFile *rawFile = OH_ResourceManager_OpenRawFile(resMgr, newRawPath.c_str());
-                long len = OH_ResourceManager_GetRawFileSize(rawFile);
-                std::unique_ptr<uint8_t[]> data = std::make_unique<uint8_t[]>(len);
-                int res = OH_ResourceManager_ReadRawFile(rawFile, data.get(), len);
-                OH_ResourceManager_CloseRawFile(rawFile);
-                error = OH_Drawing_RegisterFontBuffer(fontCollection_, fontFamily.c_str(), data.get(), len);
+                if (rawFile) {
+                    long len = OH_ResourceManager_GetRawFileSize(rawFile);
+                    if (len > 0) {
+                        std::unique_ptr<uint8_t[]> data = std::make_unique<uint8_t[]>(len);
+                        int res = OH_ResourceManager_ReadRawFile(rawFile, data.get(), len);
+                        OH_ResourceManager_CloseRawFile(rawFile);
+                        error = OH_Drawing_RegisterFontBuffer(fontCollection_, fontFamily.c_str(), data.get(), len);
+                    } else {
+                        OH_ResourceManager_CloseRawFile(rawFile);
+                    }
+                }
             } else {
                 error = OH_Drawing_RegisterFont(fontCollection_, fontFamily.c_str(), fontSrc);
             }
@@ -554,8 +563,10 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             OH_Drawing_SetTextStyleFontFamilies(txtStyle, 1, fontFamilies);
             auto rootView = GetRootView();
             auto rootViewLock = rootView.lock();
-            auto nativeResMgr = rootViewLock->GetNativeResourceManager();
-            KRFontCollectionWrapper::GetInstance().RegisterCustomFont(nativeResMgr, fontFamily);
+            if (rootViewLock) {
+                auto nativeResMgr = rootViewLock->GetNativeResourceManager();
+                KRFontCollectionWrapper::GetInstance().RegisterCustomFont(nativeResMgr, fontFamily);
+            }
         }
 
         // 需要在fontFamily设置后设置

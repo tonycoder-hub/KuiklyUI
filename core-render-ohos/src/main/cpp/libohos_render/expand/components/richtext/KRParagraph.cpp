@@ -90,12 +90,18 @@ class KRFontCollectionManager final {
                     if (isRawFilePath(std::string(fontSrc))) {
                         auto newRawPath = fontStrString.substr(strlen(kRawFilePrefix));
                         RawFile *rawFile = OH_ResourceManager_OpenRawFile(resMgr, newRawPath.c_str());
-                        long len = OH_ResourceManager_GetRawFileSize(rawFile);
-                        std::unique_ptr<uint8_t[]> data = std::make_unique<uint8_t[]>(len);
-                        int res = OH_ResourceManager_ReadRawFile(rawFile, data.get(), len);
-                        OH_ResourceManager_CloseRawFile(rawFile);
+                        if (rawFile) {
+                            long len = OH_ResourceManager_GetRawFileSize(rawFile);
+                            if (len > 0) {
+                                std::unique_ptr<uint8_t[]> data = std::make_unique<uint8_t[]>(len);
+                                int res = OH_ResourceManager_ReadRawFile(rawFile, data.get(), len);
+                                OH_ResourceManager_CloseRawFile(rawFile);
 
-                        error = OH_Drawing_RegisterFontBuffer(collection_, fontFamily.c_str(), data.get(), len);
+                                error = OH_Drawing_RegisterFontBuffer(collection_, fontFamily.c_str(), data.get(), len);
+                            } else {
+                                OH_ResourceManager_CloseRawFile(rawFile);
+                            }
+                        }
                     } else {
                         error = OH_Drawing_RegisterFont(collection_, fontFamily.c_str(), fontSrc);
                     }
