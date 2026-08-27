@@ -127,6 +127,8 @@ bool KRView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
             if (super_touch_handler_) {
                 super_touch_handler_ = nullptr;
             }
+            super_touch_type_ = UNKNOWN;
+            parent_super_touch_handler_.reset();
         }
         didHand = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
@@ -412,6 +414,8 @@ bool KRView::ResetProp(const std::string &prop_key) {
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameSuperTouch)) {
         super_touch_handler_ = nullptr;
+        super_touch_type_ = UNKNOWN;
+        parent_super_touch_handler_.reset();
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
         target_hit_test_mode = ARKUI_HIT_TEST_MODE_DEFAULT;
@@ -464,7 +468,7 @@ void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
     }
     if (super_touch_type_ == SELF) {
         bool should_stop = handled;
-        if (super_touch_handler_->GetStopPropagation(action)) {
+        if (super_touch_handler_ && super_touch_handler_->GetStopPropagation(action)) {
             should_stop = true;
             super_touch_handler_->SetStopPropagation(action, false);
         }
