@@ -95,16 +95,21 @@ void KRRenderLayerHandler::RemoveRenderView(int tag) {
  */
 void KRRenderLayerHandler::InsertSubRenderView(int parent_tag, int child_tag, int index) {
     auto isRootViewTag = parent_tag == -1;
-    auto &child_view = view_registry_[child_tag];
+    auto child_it = view_registry_.find(child_tag);
+    if (child_it == view_registry_.end() || child_it->second == nullptr) {
+        return;
+    }
+    auto &child_view = child_it->second;
     if (isRootViewTag) {
         if (auto lock = root_view_.lock()) {
             lock->AddContentView(child_view, index);
         }
     } else {
-        auto &parent_view = view_registry_[parent_tag];
-        if (parent_view != nullptr && child_view != nullptr) {
-            parent_view->ToInsertSubRenderView(child_view, index);
+        auto parent_it = view_registry_.find(parent_tag);
+        if (parent_it == view_registry_.end() || parent_it->second == nullptr) {
+            return;
         }
+        parent_it->second->ToInsertSubRenderView(child_view, index);
     }
 }
 

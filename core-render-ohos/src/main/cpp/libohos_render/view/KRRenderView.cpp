@@ -191,7 +191,7 @@ std::shared_ptr<IKRRenderModuleExport> KRRenderView::GetModuleOrCreate(const std
 }
 
 void KRRenderView::AddContentView(const std::shared_ptr<IKRRenderViewExport> contentView, int index) {
-    if (root_node_ == nullptr) {
+    if (root_node_ == nullptr || contentView == nullptr) {
         return;
     }
     kuikly::util::GetNodeApi()->addChild(root_node_, contentView->GetNode());
