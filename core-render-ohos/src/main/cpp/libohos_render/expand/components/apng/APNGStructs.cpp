@@ -14,6 +14,7 @@
  */
 
 #include "libohos_render/expand/components/apng/APNGStructs.h"
+#include "libohos_render/expand/components/apng/APNGBlendBounds.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -168,6 +169,13 @@ void APNG::HandleFrameBlendOp(std::shared_ptr<Frame> frame, int index) {
     if (!frameDecodeSuccess) {
         return;
     }
+    // leftover: fcTL left/top/width/height are unvalidated. Skip blend when the
+    // frame rect is outside IHDR or the canvas/frame buffers are too small.
+    if (!ApngCanvasBufferBigEnough(width, height, drawingBuffer.size()) ||
+        !ApngCanvasBufferBigEnough(frame->width, frame->height, frameBuffer.size()) ||
+        !ApngFrameRectInCanvas(frame->left, frame->top, frame->width, frame->height, width, height)) {
+        return;
+    }
     for (int y = 0; y < frame->height; ++y) {
         for (int x = 0; x < frame->width; ++x) {
             int srcIdx = (y * frame->width + x) * 4;
@@ -224,6 +232,11 @@ void APNG::HandleFrameBlendOp(std::shared_ptr<Frame> frame, int index) {
 void APNG::HandlePostFrameDisposeOp(std::shared_ptr<Frame> frame) {
     if (frame->disposeOp == 1) {  // 清理当前区域
         auto &drawingBuffer = this->curBitmapBuffer;
+        // leftover: same unvalidated fcTL rect as HandleFrameBlendOp.
+        if (!ApngCanvasBufferBigEnough(width, height, drawingBuffer.size()) ||
+            !ApngFrameRectInCanvas(frame->left, frame->top, frame->width, frame->height, width, height)) {
+            return;
+        }
         // 清除当前帧区域
         for (int y = 0; y < frame->height; ++y) {
             for (int x = 0; x < frame->width; ++x) {
