@@ -27,29 +27,13 @@ inline namespace model_util {
 const char HEX_DIGITS[] = "0123456789abcdef";
 // Maps integer in the range [0,16) to a hex digit.
 
-const char HEX_DIGITS_URI[] = "0123456789ABCDEF";
-// RFC 3986 section 2.1 says "For consistency, URI producers and normalizers should use uppercase
-// hexadecimal digits for all percent-encodings.
-
 const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                             "abcdefghijklmnopqrstuvwxyz"
                             "0123456789+/";
 // Maps integer in the range [0,16) to a hex digit.
 
-std::string KREncodeURLComponent(const std::string &in) {
-    std::string out;
-    for (auto &b : in) {
-        if (('A' <= b && b <= 'Z') || ('a' <= b && b <= 'z') || ('0' <= b && b <= '9') || b == '-' || b == '_' ||
-            b == '.' || b == '!' || b == '~' || b == '*' || b == '\'' || b == '(' || b == ')') {
-            out.push_back(b);
-        } else {
-            out.push_back('%');
-            out.push_back(HEX_DIGITS_URI[b / 16]);
-            out.push_back(HEX_DIGITS_URI[b % 16]);
-        }
-    }
-    return out;
-}
+// leftover KREncodeURLComponent is header-only in KRCodecEncode.h so host
+// tests compile the leftover unsigned-char hex-index path without Harmony.
 
 std::string KRDecodeURLComponent(const std::string &in) {
     std::string res;
