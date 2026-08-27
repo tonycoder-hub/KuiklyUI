@@ -14,11 +14,17 @@
  */
 
 #include "SuperTouchHandler.h"
+
+#include "libohos_render/manager/KRWeakObjectManager.h"
 SuperTouchHandler::~SuperTouchHandler() {
-    for (auto recognizer : gesture_recognizers_) {
-        OH_ArkUI_SetGestureRecognizerEnabled(recognizer, true);
+    auto snapshot = gesture_recognizers_;
+    for (auto recognizer : snapshot) {
+        if (recognizer == nullptr) {
+            continue;
+        }
         OH_ArkUI_SetArkUIGestureRecognizerDisposeNotify(
             recognizer, [](ArkUI_GestureRecognizer *recognizer, void *userData) {}, nullptr);
+        OH_ArkUI_SetGestureRecognizerEnabled(recognizer, true);
     }
     gesture_recognizers_.clear();
 }
@@ -29,6 +35,9 @@ void SuperTouchHandler::PreventTouch(bool prevent) {
     }
     prevent_touch_ = prevent;
     for (auto recognizer : gesture_recognizers_) {
+        if (recognizer == nullptr) {
+            continue;
+        }
         OH_ArkUI_SetGestureRecognizerEnabled(recognizer, !prevent);
     }
 }
@@ -44,22 +53,35 @@ void SuperTouchHandler::ClearNativeTouchConsumer(const std::shared_ptr<IKRRender
 }
 
 void SuperTouchHandler::CollectGestureRecognizer(ArkUI_GestureRecognizer *recognizer) {
+    if (recognizer == nullptr) {
+        return;
+    }
     if (gesture_recognizers_.find(recognizer) != gesture_recognizers_.end()) {
         // already collected
         return;
     }
     // TODO: consider to erase the recognizer when it's owner ark_ui_node detached
     gesture_recognizers_.insert(recognizer);
+    void *userData = KRWeakObjectManagerRegisterWeakObject(shared_from_this());
     OH_ArkUI_SetArkUIGestureRecognizerDisposeNotify(
         recognizer,
         [](ArkUI_GestureRecognizer *recognizer, void *userData) {
-            auto self = static_cast<SuperTouchHandler *>(userData);
-            self->gesture_recognizers_.erase(recognizer);
+            auto weak = KRWeakObjectManagerGetWeakObject<SuperTouchHandler>(userData);
+            if (auto self = weak.lock()) {
+                self->gesture_recognizers_.erase(recognizer);
+            }
         },
-        this);
+        userData);
     if (prevent_touch_) {
         OH_ArkUI_SetGestureRecognizerEnabled(recognizer, false);
     }
+}
+
+void SuperTouchHandler::EraseGestureRecognizer(ArkUI_GestureRecognizer *recognizer) {
+    if (recognizer == nullptr) {
+        return;
+    }
+    gesture_recognizers_.erase(recognizer);
 }
 
 bool SuperTouchHandler::IsCanceled() { return super_touch_canceled_; }

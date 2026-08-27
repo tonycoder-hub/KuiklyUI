@@ -18,8 +18,9 @@
 
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include <arkui/native_gesture.h>
+#include <memory>
 #include <unordered_set>
-class SuperTouchHandler {
+class SuperTouchHandler : public std::enable_shared_from_this<SuperTouchHandler> {
 public:
     SuperTouchHandler() {}
     ~SuperTouchHandler();
@@ -28,6 +29,7 @@ public:
     void SetNativeTouchConsumer(const std::shared_ptr<IKRRenderViewExport> &native_touch_consumer);
     void ClearNativeTouchConsumer(const std::shared_ptr<IKRRenderViewExport> &native_touch_consumer);
     void CollectGestureRecognizer(ArkUI_GestureRecognizer *recognizer);
+    void EraseGestureRecognizer(ArkUI_GestureRecognizer *recognizer);
     bool IsCanceled();
     bool ProcessCancel();
     void ResetCancel();
