@@ -26,10 +26,15 @@ class KRActivityIndicatorAnimationView : public IKRRenderViewExport {
                  const KRRenderCallback event_call_back = nullptr) override;
     void SetRenderViewFrame(const KRRect &frame) override;
     void OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) override;
+    void OnDestroy() override;
 
  private:
+    struct MyUserData;
+    static void DeleteMyUserData(MyUserData *user_data);
     void SetStyle(const std::string &style);
     void FireOnImageCompleteEvent(ArkUI_NodeEvent *event);
+
+    MyUserData *user_data_ = nullptr;
 };
 
 #endif  // CORE_RENDER_OHOS_KRACTIVITYINDICATORANIMATIONVIEW_H

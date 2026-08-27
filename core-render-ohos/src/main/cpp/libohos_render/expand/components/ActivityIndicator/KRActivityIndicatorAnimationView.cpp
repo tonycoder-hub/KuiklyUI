@@ -27,6 +27,51 @@ constexpr int kMinFrameRate = 10;
 constexpr int kMaxFrameRate = 120;
 constexpr int kExpectedFrameRate = 60;
 
+struct KRActivityIndicatorAnimationView::MyUserData {
+    ArkUI_ContextHandle handle = nullptr;
+    std::weak_ptr<IKRRenderViewExport> weak_view;
+    ArkUI_ContextCallback update{};
+    ArkUI_AnimateCompleteCallback complete_callback{};
+    ArkUI_AnimateOption *option = nullptr;
+    uint32_t index = 0;
+    bool stop = false;
+    bool armed = false;
+    MyUserData **owner = nullptr;
+};
+
+void KRActivityIndicatorAnimationView::DeleteMyUserData(MyUserData *user_data) {
+    if (user_data == nullptr) {
+        return;
+    }
+    if (user_data->owner != nullptr) {
+        *user_data->owner = nullptr;
+        user_data->owner = nullptr;
+    }
+    if (user_data->option != nullptr) {
+        OH_ArkUI_AnimateOption_Dispose(user_data->option);
+        user_data->option = nullptr;
+    }
+    user_data->weak_view.reset();
+    delete user_data;
+}
+
+void KRActivityIndicatorAnimationView::OnDestroy() {
+    IKRRenderViewExport::OnDestroy();
+    if (user_data_ == nullptr) {
+        return;
+    }
+    user_data_->stop = true;
+    // If animateTo never armed, complete will not fire — delete here.
+    // If armed, detach owner then drop the view slot so complete cannot
+    // write *owner into a destroyed view. Complete still deletes MyUserData.
+    if (!user_data_->armed) {
+        DeleteMyUserData(user_data_);
+    } else {
+        user_data_->owner = nullptr;
+        user_data_ = nullptr;
+    }
+}
+
 ArkUI_NodeHandle KRActivityIndicatorAnimationView::CreateNode() {
     return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_IMAGE);
 }
@@ -84,24 +129,23 @@ void KRActivityIndicatorAnimationView::FireOnImageCompleteEvent(ArkUI_NodeEvent 
 
     auto root_view = GetRootView().lock();
     if (!root_view) {
+        OH_ArkUI_AnimateOption_Dispose(option);
         return;
     }
     ArkUI_ContextHandle handle = root_view->GetUIContextHandle();
 
-    struct MyUserData {
-        ArkUI_ContextHandle handle;
-        std::weak_ptr<IKRRenderViewExport> weak_view;
-        ArkUI_ContextCallback update;
-        ArkUI_AnimateCompleteCallback complete_callback;
-        ArkUI_AnimateOption *option;
-        uint32_t index;
-        bool stop;
-    };
+    if (user_data_ != nullptr) {
+        DeleteMyUserData(user_data_);
+    }
+
     MyUserData *user_data = new MyUserData;
+    user_data->stop = false;
     user_data->weak_view = weak_from_this();
     user_data->handle = handle;
     user_data->option = option;
     user_data->index = 0;
+    user_data->owner = &user_data_;
+    user_data_ = user_data;
     user_data->update.userData = user_data;
     user_data->update.callback = [](void *userData) {
         struct MyUserData *user_data = (struct MyUserData *)userData;
@@ -122,8 +166,7 @@ void KRActivityIndicatorAnimationView::FireOnImageCompleteEvent(ArkUI_NodeEvent 
     user_data->complete_callback.callback = [](void *userData) {
         struct MyUserData *user_data = (struct MyUserData *)userData;
         if (user_data->stop) {
-            user_data->weak_view.reset();
-            free(userData);
+            DeleteMyUserData(user_data);
         } else {
             // start next iteration
             user_data->index = (user_data->index + 1) % kRotateTimesPerCycle;
@@ -137,11 +180,14 @@ void KRActivityIndicatorAnimationView::FireOnImageCompleteEvent(ArkUI_NodeEvent 
                 OH_ArkUI_AnimateOption_SetDuration(user_data->option, kDurations[user_data->index]);
                 ArkUI_NativeAnimateAPI_1 *animate_api = reinterpret_cast<ArkUI_NativeAnimateAPI_1 *>(
                     OH_ArkUI_QueryModuleInterfaceByName(ARKUI_NATIVE_ANIMATE, "ArkUI_NativeAnimateAPI_1"));
+                if (!animate_api) {
+                    DeleteMyUserData(user_data);
+                    return;
+                }
                 animate_api->animateTo(user_data->handle, user_data->option, &user_data->update,
                                        &user_data->complete_callback);
             } else {
-                user_data->weak_view.reset();
-                free(userData);
+                DeleteMyUserData(user_data);
             }
         }
     };
@@ -149,6 +195,9 @@ void KRActivityIndicatorAnimationView::FireOnImageCompleteEvent(ArkUI_NodeEvent 
     OH_ArkUI_AnimateOption_SetDuration(option, kDurations[user_data->index]);
     ArkUI_NativeAnimateAPI_1 *animate_api = reinterpret_cast<ArkUI_NativeAnimateAPI_1 *>(
         OH_ArkUI_QueryModuleInterfaceByName(ARKUI_NATIVE_ANIMATE, "ArkUI_NativeAnimateAPI_1"));
-
+    if (!animate_api) {
+        return;
+    }
+    user_data->armed = true;
     animate_api->animateTo(handle, option, &user_data->update, &user_data->complete_callback);
 }
