@@ -40,7 +40,7 @@ constexpr auto kDirectRunFastFailWindow = std::chrono::milliseconds{100};
 }  // namespace
 
 KRThread::KRThread(const std::string &name) {
-    m_workerThread = std::thread([this, name]() {this->WorkerLoop(name); });
+    m_workerThread = KRSizedThread([this, name]() { this->WorkerLoop(name); });
     pthread_setname_np(m_workerThread.native_handle(), name.c_str());
 
     // 等 worker 线程把 uv_loop_init / uv_async_init 完成后再返回，
