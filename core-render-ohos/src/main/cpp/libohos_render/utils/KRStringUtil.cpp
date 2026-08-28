@@ -55,17 +55,6 @@ std::vector<std::string> SplitString(const std::string &str, std::string separat
     return result;
 }
 
-bool isEqual2(const char *str1, const char *str2) {
-    if ((str1 == NULL && str2) || (str1 && str2 == NULL) || (str1 == NULL && str2 == NULL)) {
-        return false;
-    }
-    if (std::strcmp(str1, str2) == 0) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
 bool isEqual(const std::string &str1, const char *str2) {
     return isEqual2(str1.c_str(), str2);
 }
