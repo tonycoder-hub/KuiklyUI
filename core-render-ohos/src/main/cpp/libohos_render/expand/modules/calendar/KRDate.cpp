@@ -87,10 +87,19 @@ void Date::SetDate(int date) {
     time.tm_mday = date;
 }
 void Date::SetDateOfYear(int date) {
-    time.tm_yday = date - 1;
+    // POSIX mktime ignores tm_yday and recomputes it. Match Web
+    // setFullYear(year, 0, value): 1-based day-of-year as January `date`.
+    time.tm_mon = 0;
+    time.tm_mday = date;
+    mktime(&time);
 }  // 跨端层输入yday从1开始
 void Date::SetDateOfWeek(int date) {
-    time.tm_wday = date - 1;
+    // POSIX mktime ignores tm_wday. Normalize first so tm_wday is current,
+    // then apply the delta to tm_mday (Android Calendar DAY_OF_WEEK set/add).
+    // Cross-layer wday is 1-based (Sunday=1); tm_wday is 0-based.
+    mktime(&time);
+    time.tm_mday += (date - 1) - time.tm_wday;
+    mktime(&time);
 }  // 跨端层输入wday从1开始
 void Date::SetHours(int hour) {
     time.tm_hour = hour;
