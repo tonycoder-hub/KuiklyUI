@@ -91,6 +91,8 @@ class APNG {
     std::atomic_bool isParsing = true;
     std::function<void()> lazyBeforeNextFrameTask = nullptr;
     std::vector<uint8_t> curBitmapBuffer;
+    // Pre-blend canvas snapshot for APNG_DISPOSE_OP_PREVIOUS. Saved before
+    // blending; restored onto curBitmapBuffer after the frame is committed.
     std::vector<uint8_t> previousBuffer;
     std::mutex drawableMutex;
 

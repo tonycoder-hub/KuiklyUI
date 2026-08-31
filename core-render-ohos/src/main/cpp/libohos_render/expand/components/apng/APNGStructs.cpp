@@ -14,6 +14,7 @@
  */
 
 #include "libohos_render/expand/components/apng/APNGStructs.h"
+#include "libohos_render/expand/components/apng/APNGDisposeBuffer.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -148,9 +149,9 @@ bool APNG::DidAddFrame(std::shared_ptr<Frame> frame, int index) {
             this->lazyBeforeNextFrameTask();
             this->lazyBeforeNextFrameTask = nullptr;
         }
-        if (frame->disposeOp == 2) {  // 保存上一帧到缓冲区
-            previousBuffer = curBitmapBuffer;
-        }
+        // DISPOSE_OP_PREVIOUS: snapshot the pre-blend canvas, then restore
+        // it in HandlePostFrameDisposeOp after the blended frame is committed.
+        SaveCanvasIfDisposePrevious(frame->disposeOp, previousBuffer, curBitmapBuffer);
         HandleFrameBlendOp(frame, index);
         HandlePostFrameDisposeOp(frame);
         didHandled = true;
@@ -222,7 +223,7 @@ void APNG::HandleFrameBlendOp(std::shared_ptr<Frame> frame, int index) {
 }
 
 void APNG::HandlePostFrameDisposeOp(std::shared_ptr<Frame> frame) {
-    if (frame->disposeOp == 1) {  // 清理当前区域
+    if (frame->disposeOp == APNG_DISPOSE_OP_BACKGROUND) {  // 清理当前区域
         auto &drawingBuffer = this->curBitmapBuffer;
         // 清除当前帧区域
         for (int y = 0; y < frame->height; ++y) {
@@ -234,8 +235,10 @@ void APNG::HandlePostFrameDisposeOp(std::shared_ptr<Frame> frame) {
                 drawingBuffer[dstIdx + 3] = 0;
             }
         }
-    } else if (frame->disposeOp == 2) {
-        previousBuffer = this->curBitmapBuffer;
+    } else if (frame->disposeOp == APNG_DISPOSE_OP_PREVIOUS) {
+        // Restore the pre-blend snapshot. Do not overwrite previousBuffer
+        // with the post-blend canvas (leftover write-only polarity).
+        RestoreCanvasIfDisposePrevious(frame->disposeOp, this->curBitmapBuffer, this->previousBuffer);
     }
 }
 
