@@ -15,6 +15,7 @@
 
 #include "libohos_render/expand/components/image/KRImageView.h"
 
+#include "libohos_render/expand/components/image/KRCapInsetsParse.h"
 #include <deviceinfo.h>
 #include <resourcemanager/ohresmgr.h>
 #include <sstream>
@@ -451,8 +452,8 @@ bool KRImageView::SetCapInsets(const KRAnyValue &value) {
         kuikly::util::ResetArkUIImageCapInsets(GetNode());
         return true;
     }
-    std::vector<std::string> items = kuikly::util::ConvertSplit(valueStr, " ");
-    if (items.size() >= 4) {
+    kuikly::util::KRCapInsetsValue insets;
+    if (kuikly::util::ParseCapInsets4(valueStr, insets)) {
         // 单位约定：SetProp 阶段拿到的 top/left/bottom/right 单位就是**图片 vp**
         // 只记录 capInsets 数据，不在此处直接下发到 ArkUI：
         //   * lattice 精确九宫格（API 24+）依赖图片的真实像素分辨率来把 vp 边距
@@ -462,11 +463,15 @@ bool KRImageView::SetCapInsets(const KRAnyValue &value) {
         //
         // 真正下发在 FireOnImageCompleteEvent 里拿到 loaded_image_size_ 之后执行；
         // 因此这里必须确保 NODE_IMAGE_ON_COMPLETE 事件已注册，否则永远拿不到分辨率。
+        //
+        // Leftover: size was already checked (>=4) but tokens used bare stof.
+        // ParseCapInsets4 try/catches each token; a non-numeric inset is 0
+        // (SetColorFilter sibling). Lattice / FireOnImageComplete unchanged.
         has_cap_insets_ = true;
-        cap_insets_top_ = std::stof(items[0]);
-        cap_insets_left_ = std::stof(items[1]);
-        cap_insets_bottom_ = std::stof(items[2]);
-        cap_insets_right_ = std::stof(items[3]);
+        cap_insets_top_ = insets.top;
+        cap_insets_left_ = insets.left;
+        cap_insets_bottom_ = insets.bottom;
+        cap_insets_right_ = insets.right;
         EnsureLoadCompleteEventRegistered();
         // 兜底：capInsets 在 src 之后到达、且 src 已经加载完成的场景（例如 base64
         // 命中缓存的同步路径），此时 has_loaded_image_ 已是 true，可以立即下发。
