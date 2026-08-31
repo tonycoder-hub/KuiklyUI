@@ -29,6 +29,7 @@
 #include "libohos_render/expand/components/base/KRCustomUserCallback.h"
 #include "libohos_render/expand/components/richtext/KRCustomEmojiPixmapCache.h"
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
+#include "libohos_render/expand/components/richtext/KRSelectedContentClamp.h"
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/foundation/KRPoint.h"
@@ -754,24 +755,15 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
 
 std::string KRRichTextView::GetSelectedContent(std::string &pre, std::string &post) {
     std::u16string str16 = utf8_to_utf16(selection_rects_.text_content);
-
-    if (selection_rects_.start > 0) {
-        std::u16string pre_u16 = str16.substr(0, selection_rects_.start);
-        pre = utf16_to_utf8(pre_u16);
+    const auto parts =
+        kuikly::util::SliceSelectedUtf16Content(str16, selection_rects_.start, selection_rects_.end);
+    if (!parts.pre.empty()) {
+        pre = utf16_to_utf8(parts.pre);
     }
-    size_t sel_end = static_cast<size_t>(selection_rects_.end);
-    if (sel_end > str16.size()) {
-        sel_end = str16.size();
+    if (!parts.post.empty()) {
+        post = utf16_to_utf8(parts.post);
     }
-    std::u16string selected_u16 = str16.substr(selection_rects_.start, sel_end - selection_rects_.start);
-    std::string selected_u8 = utf16_to_utf8(selected_u16);
-
-    if (sel_end < str16.size()) {
-        std::u16string post_u16 = str16.substr(sel_end);
-        post = utf16_to_utf8(post_u16);
-    }
-
-    return selected_u8;
+    return utf16_to_utf8(parts.selected);
 }
 
 bool KRRichTextView::UpdateSelection(std::shared_ptr<IKRRenderViewExport> ancestor_view, KRPoint ancestor_point1,
