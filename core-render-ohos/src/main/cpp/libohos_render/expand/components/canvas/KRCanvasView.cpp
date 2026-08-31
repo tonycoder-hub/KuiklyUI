@@ -28,6 +28,7 @@
 #include <native_drawing/drawing_types.h>
 #include <native_drawing/drawing_matrix.h>
 
+#include "KRCanvasNumericParse.h"
 #include "libohos_render/expand/modules/cache/KRMemoryCacheModule.h"
 #include "libohos_render/utils/KRColor.h"
 #include "libohos_render/utils/KRJSONObject.h"
@@ -180,18 +181,11 @@ void KRCanvasView::SetLineDash(const std::string &params) {
 }
 
 void processColorStops(const std::string &colorStopsStr, std::vector<uint32_t> &colors, std::vector<float> &locations) {
-    std::vector<std::string> splits = kuikly::util::ConvertSplit(colorStopsStr, ",");
-
-    for (const auto &colorStopStr : splits) {
-        if (colorStopStr.empty()) {
-            continue;
-        }
-        std::vector<std::string> colorAndStop = kuikly::util::ConvertSplit(colorStopStr, " ");
-        if (colorAndStop.size() < 2) {
-            continue;
-        }
-        colors.push_back(kuikly::util::ConvertToHexColor(colorAndStop[0]));
-        locations.push_back(std::stof(colorAndStop[1]));
+    std::vector<std::string> color_tokens;
+    kuikly::util::ProcessCanvasColorStops(colorStopsStr, color_tokens, locations);
+    colors.reserve(color_tokens.size());
+    for (const auto &color_token : color_tokens) {
+        colors.push_back(kuikly::util::ConvertToHexColor(color_token));
     }
 }
 
@@ -366,11 +360,15 @@ void KRCanvasView::SetTextAlign(const std::string &params) {
 
 void KRCanvasView::SetFont(const std::string &params) {
     auto paramObj = kuikly::util::JSONObject::Parse(params);
+    if (!paramObj) {
+        return;
+    }
     auto size = paramObj->GetNumber("size");
     auto style = paramObj->GetString("style");
-    auto weight = std::stoi(paramObj->GetString("weight"));
     auto family = paramObj->GetString("family");
-    
+    int weight = 0;
+    const bool have_weight = kuikly::util::ParseCanvasFontWeight(paramObj->GetString("weight"), weight);
+
     float scale = 1.0;
     if (auto root = GetRootView().lock()) {
         scale = root->GetContext()->Config()->GetFontWeightScale();
@@ -378,7 +376,9 @@ void KRCanvasView::SetFont(const std::string &params) {
 
     text_feature_.fontSize = size;
     text_feature_.fontStyle = kuikly::util::ConvertToFontStyle(style);
-    text_feature_.fontWeight = kuikly::util::ConvertFontWeight(weight, scale);
+    if (have_weight) {
+        text_feature_.fontWeight = kuikly::util::ConvertFontWeight(weight, scale);
+    }
     text_feature_.fontFamily = family;
 }
 
