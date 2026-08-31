@@ -37,44 +37,37 @@ void KRFrameMonitor::OnFirstFramePaint() {
 
 void KRFrameMonitor::Start() {
     KR_LOG_INFO_WITH_TAG(kTag) << "Start";
-    if (is_started_) {
+    if (!flags_.Start()) {
         KR_LOG_INFO_WITH_TAG(kTag) << "has start before.";
         return;
     }
-    is_started_ = true;
-    is_resumed_ = true;
-    last_frame_time_nanos_ = 0;
     frame_data_.Reset();
     RequestNextVSync();
 }
 
 void KRFrameMonitor::Stop() {
-    if (!is_started_) {
+    if (!flags_.is_started) {
         KR_LOG_INFO_WITH_TAG(kTag) << "stop, not start yet.";
         return;
     }
-    is_started_ = false;
-    is_resumed_ = false;
-    last_frame_time_nanos_ = 0;
+    flags_.Stop();
 }
 
 void KRFrameMonitor::OnResume() {
-    if (!is_started_ || is_resumed_) {
-        KR_LOG_INFO_WITH_TAG(kTag) << "resume, isStarted: " << is_started_ << "isResumed: " << is_resumed_;
+    if (!flags_.OnResume()) {
+        KR_LOG_INFO_WITH_TAG(kTag) << "resume, isStarted: " << flags_.is_started << "isResumed: " << flags_.is_resumed;
         return;
     }
-    is_resumed_ = true;
-    last_frame_time_nanos_ = 0;
     RequestNextVSync();
 }
 
 void KRFrameMonitor::OnPause() {
-    if (!is_started_ || is_resumed_) {
-        KR_LOG_INFO_WITH_TAG(kTag) << "pause, isStarted: " << is_started_ << "isResumed: " << is_resumed_;
-        return;   
+    if (!flags_.OnPause()) {
+        KR_LOG_INFO_WITH_TAG(kTag) << "pause, isStarted: " << flags_.is_started << "isResumed: " << flags_.is_resumed;
+        return;
     }
-    last_frame_time_nanos_ = 0;
-    is_resumed_ = false;
+    // flags_.OnPause() cleared last_frame_time_nanos and is_resumed.
+    // RequestNextVSync is gated by ShouldRequestFrames(), so frames stop.
 }
 
 void KRFrameMonitor::OnDestroy() {
@@ -86,18 +79,18 @@ std::string KRFrameMonitor::GetMonitorData() {
 }
 
 void KRFrameMonitor::RequestNextVSync() {
-    if (native_vsync_ && is_started_ && is_resumed_) {
+    if (native_vsync_ && flags_.ShouldRequestFrames()) {
         OH_NativeVSync_RequestFrame(native_vsync_, &KRFrameMonitor::OnVSync, this);
     }
 }
 
 void KRFrameMonitor::OnVSync(long long timestamp, void* data) {
     auto* monitor = static_cast<KRFrameMonitor*>(data);
-    if (!monitor || !monitor->is_started_ || !monitor->is_resumed_) {
+    if (!monitor || !monitor->flags_.ShouldRequestFrames()) {
         return;
     }
-    if (monitor->last_frame_time_nanos_ > 0) {
-        long long frameDuration = timestamp - monitor->last_frame_time_nanos_;
+    if (monitor->flags_.last_frame_time_nanos > 0) {
+        long long frameDuration = timestamp - monitor->flags_.last_frame_time_nanos;
         // 1. 累计总耗时
         long long frameDurationMillis = frameDuration / ONE_MILLI_SECOND_IN_NANOS;
         monitor->frame_data_.total_duration += frameDuration / ONE_MILLI_SECOND_IN_NANOS;
@@ -111,7 +104,7 @@ void KRFrameMonitor::OnVSync(long long timestamp, void* data) {
         }
 
     }
-    monitor->last_frame_time_nanos_ = timestamp;
+    monitor->flags_.last_frame_time_nanos = timestamp;
     // 请求下一帧
     monitor->RequestNextVSync();
 }
