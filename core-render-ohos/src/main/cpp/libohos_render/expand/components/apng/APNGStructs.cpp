@@ -14,6 +14,7 @@
  */
 
 #include "libohos_render/expand/components/apng/APNGStructs.h"
+#include "libohos_render/expand/components/apng/APNGCanvasIndex.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -160,6 +161,11 @@ bool APNG::DidAddFrame(std::shared_ptr<Frame> frame, int index) {
 
 void APNG::HandleFrameBlendOp(std::shared_ptr<Frame> frame, int index) {
     // 合成// 根据 blendOp 合成帧
+    // fcTL left/top/width/height are unclamped; reject frames that walk
+    // past the canvas before writing drawingBuffer[dstIdx..+3].
+    if (!IsFrameRectInCanvas(frame->left, frame->top, frame->width, frame->height, width, height)) {
+        return;
+    }
     auto &drawingBuffer = this->curBitmapBuffer;
     auto framePixelmap = CreatePixelMap(frame);
     auto frameBuffer = std::vector<uint8_t>();
@@ -171,7 +177,7 @@ void APNG::HandleFrameBlendOp(std::shared_ptr<Frame> frame, int index) {
     for (int y = 0; y < frame->height; ++y) {
         for (int x = 0; x < frame->width; ++x) {
             int srcIdx = (y * frame->width + x) * 4;
-            int dstIdx = ((y + frame->top) * width + (x + frame->left)) * 4;
+            const size_t dstIdx = CanvasDstIndex(x, y, frame->left, frame->top, width);
 
             if (frame->blendOp == 0) {  // 覆盖操作
                 drawingBuffer[dstIdx + 0] = frameBuffer[srcIdx + 0];
@@ -223,11 +229,15 @@ void APNG::HandleFrameBlendOp(std::shared_ptr<Frame> frame, int index) {
 
 void APNG::HandlePostFrameDisposeOp(std::shared_ptr<Frame> frame) {
     if (frame->disposeOp == 1) {  // 清理当前区域
+        // Same leftover dstIdx math as HandleFrameBlendOp; skip OOB fcTL.
+        if (!IsFrameRectInCanvas(frame->left, frame->top, frame->width, frame->height, width, height)) {
+            return;
+        }
         auto &drawingBuffer = this->curBitmapBuffer;
         // 清除当前帧区域
         for (int y = 0; y < frame->height; ++y) {
             for (int x = 0; x < frame->width; ++x) {
-                int dstIdx = ((y + frame->top) * width + (x + frame->left)) * 4;
+                const size_t dstIdx = CanvasDstIndex(x, y, frame->left, frame->top, width);
                 drawingBuffer[dstIdx + 0] = 0;
                 drawingBuffer[dstIdx + 1] = 0;
                 drawingBuffer[dstIdx + 2] = 0;
