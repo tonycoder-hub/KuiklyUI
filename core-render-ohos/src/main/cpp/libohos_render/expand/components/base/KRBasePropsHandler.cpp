@@ -20,6 +20,7 @@
 #include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/foundation/KRRect.h"
 #include "libohos_render/utils/KREventUtil.h"
+#include "libohos_render/utils/KRFrameMemcpy.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/KRViewUtil.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
@@ -91,8 +92,11 @@ bool KRBasePropsHandler::SetPropWithoutAnimation(const std::string &prop_key, co
     if (strcmp(prop_key.c_str(), kFrame) == 0) {
         if (prop_value->isString()) {
             KRRect frame;
-            const std::string &s = prop_value->toString();
-            memcpy(&frame, s.data(), s.size());
+            // leftover: memcpy(&frame, s.data(), s.size()) smashed the stack
+            // when s.size() > sizeof(KRRect), and also wrote into isDefault_.
+            if (!kuikly::util::TryCopyFrameFloats(prop_value->toString(), frame)) {
+                return false;
+            }
             ResetTransformIfNeed();
             kuikly::util::UpdateNodeFrame(node_, frame);
             frame_ = frame;

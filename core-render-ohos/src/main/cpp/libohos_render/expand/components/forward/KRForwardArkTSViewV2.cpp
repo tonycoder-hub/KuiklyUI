@@ -16,6 +16,7 @@
 #include "libohos_render/expand/components/forward/KRForwardArkTSViewV2.h"
 
 #include "libohos_render/manager/KRArkTSManager.h"
+#include "libohos_render/utils/KRFrameMemcpy.h"
 
 std::shared_ptr<KRBaseEventHandler>  KRForwardArkTSViewV2::CreateBaseEventHandler(std::shared_ptr<IKRRenderView> rootView) {
     if(rootView){
@@ -78,8 +79,10 @@ bool KRForwardArkTSViewV2::SetProp(const std::string &prop_key, const KRAnyValue
         // 设置属性
         if(prop_key == "frame"){
             KRRect frame;
-            const std::string &s = prop_value->toString();
-            memcpy(&frame, s.data(), s.size());
+            // leftover: memcpy(&frame, s.data(), s.size()) smashed KRRect.
+            if (!kuikly::util::TryCopyFrameFloats(prop_value->toString(), frame)) {
+                return false;
+            }
             std::string serialized(64,0);
             snprintf(serialized.data(), serialized.size() - 1, "%.3f %.3f %.3f %.3f %d", frame.x, frame.y, frame.width, frame.height, frame.isDefaultZero());
             KRArkTSManager::GetInstance().CallArkTSMethod(this->GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,

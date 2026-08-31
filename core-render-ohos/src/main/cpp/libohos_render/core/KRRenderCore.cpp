@@ -20,6 +20,7 @@
 #include <memory>
 #include "libohos_render/foundation/KRRect.h"
 #include "libohos_render/layer/KRRenderLayerHandler.h"
+#include "libohos_render/utils/KRFrameMemcpy.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/utils/KRRenderLoger.h"
@@ -304,7 +305,9 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
         const float right = alignEdgeToPixel(arg2->toFloat() + arg4->toFloat());
         const float bottom = alignEdgeToPixel(arg3->toFloat() + arg5->toFloat());
         auto rect = KRRect(left, top, right - left, bottom - top);
-        std::string rectData((const char *)&rect, sizeof(KRRect));
+        // Wire only the 4 floats. sizeof(KRRect) includes isDefault_ and would
+        // be rejected by TryCopyFrameFloats (exactly kKRFrameFloatBytes).
+        std::string rectData(reinterpret_cast<const char *>(&rect.x), kuikly::util::kKRFrameFloatBytes);
         auto value = KRRenderValue::Make(rectData);
         renderLayerHandler_->SetProp(arg1->toInt(), "frame", value);
         break;
