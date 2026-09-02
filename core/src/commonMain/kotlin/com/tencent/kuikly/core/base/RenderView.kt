@@ -19,9 +19,11 @@ import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.manager.PagerManager
+import com.tencent.kuikly.core.module.AnyCallbackFn
 import com.tencent.kuikly.core.module.CallbackFn
 import com.tencent.kuikly.core.module.CallbackRef
-import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.nvi.serialization.json.JSONEngine
+import com.tencent.kuikly.core.nvi.serialization.json.JSONException
 
 class RenderView(private val pagerId: String, private val viewRef: Int, private val viewName: String) {
 
@@ -58,11 +60,12 @@ class RenderView(private val pagerId: String, private val viewRef: Int, private 
             callbackRef = GlobalFunctions.createFunction(pagerId) { data ->
                 val trace = PagerManager.getPagerEventTrace(pagerId)
                 trace?.onViewCallbackStart(viewName, viewRef, methodName, peekedCallbackRef)
-                var res : JSONObject? = null
-                if (data != null && data is String) {
-                    res = JSONObject(data)
-                }
-                cb(res)
+                val res = decodeViewCallbackPayload(data)
+                // Native/WebView methods such as canGoBack return Boolean or String
+                // tokens, not JSON objects. CallbackFn stays JSONObject? for
+                // source compatibility; invoke through Any so primitives pass.
+                @Suppress("UNCHECKED_CAST")
+                (cb as AnyCallbackFn)(res)
                 trace?.onViewCallbackEnd(viewName, viewRef, methodName, peekedCallbackRef)
                 false
             }
@@ -87,5 +90,32 @@ class RenderView(private val pagerId: String, private val viewRef: Int, private 
 
     companion object {
         const val ROOT_VIEW_TAG = -1
+    }
+}
+
+/**
+ * Decode a native/WebView callMethod callback payload.
+ *
+ * Native sides may pass an already-typed value (Boolean, String, Number,
+ * JSONObject) or a JSON text token such as `true`, `false`, `"ok"`, or
+ * `{...}`. Forcing [JSONObject] throws
+ * `Value false of type Boolean cannot be converted to JSONObject`.
+ */
+internal fun decodeViewCallbackPayload(data: Any?): Any? {
+    return when (data) {
+        null -> null
+        is String -> decodeViewCallbackJsonString(data)
+        else -> data
+    }
+}
+
+internal fun decodeViewCallbackJsonString(json: String): Any? {
+    if (json.isEmpty()) {
+        return json
+    }
+    return try {
+        JSONEngine.parse(json)
+    } catch (_: JSONException) {
+        json
     }
 }
