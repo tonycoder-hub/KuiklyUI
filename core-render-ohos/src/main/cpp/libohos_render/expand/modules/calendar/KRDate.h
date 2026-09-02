@@ -14,6 +14,7 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <ctime>
 #include <string>
 
@@ -60,6 +61,8 @@ class Date {
 
  private:
     tm time;
+    // Always in [0, 999]. C++ / and % are toward-zero, so leftover-negative
+    // timestamps and SetMilliseconds values are normalized with floor-div.
     int millis;
 };
 
