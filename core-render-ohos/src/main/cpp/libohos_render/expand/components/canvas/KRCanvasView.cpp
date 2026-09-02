@@ -31,6 +31,7 @@
 #include "libohos_render/expand/modules/cache/KRMemoryCacheModule.h"
 #include "libohos_render/utils/KRColor.h"
 #include "libohos_render/utils/KRJSONObject.h"
+#include "KRCanvasParsedJson.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -144,7 +145,10 @@ void KRCanvasView::OnCustomEvent(ArkUI_NodeCustomEvent *event, const ArkUI_NodeC
 }
 
 void KRCanvasView::SetLineCap(const std::string &params) {
-    auto obj = kuikly::util::JSONObject::Parse(params);
+    auto obj = kuikly::util::AdoptParsedJson(params);
+    if (!obj) {
+        return;
+    }
     std::string str = obj->GetString("style");
     OH_Drawing_PenLineCapStyle style = LINE_FLAT_CAP;
     if (str == "round") {
@@ -157,7 +161,10 @@ void KRCanvasView::SetLineCap(const std::string &params) {
 }
 
 void KRCanvasView::SetLineWidth(const std::string &params) {
-    auto obj = kuikly::util::JSONObject::Parse(params);
+    auto obj = kuikly::util::AdoptParsedJson(params);
+    if (!obj) {
+        return;
+    }
     float width = obj->GetNumber("width");
 
     CreatePenIfNeeded();
@@ -165,7 +172,10 @@ void KRCanvasView::SetLineWidth(const std::string &params) {
 }
 
 void KRCanvasView::SetLineDash(const std::string &params) {
-    auto obj = kuikly::util::JSONObject::Parse(params);
+    auto obj = kuikly::util::AdoptParsedJson(params);
+    if (!obj) {
+        return;
+    }
     auto intervalsVector = obj->GetNumberArray("intervals");
     int count = intervalsVector.size();
     CreatePenIfNeeded();
@@ -263,7 +273,10 @@ void KRCanvasView::MoveTo(const std::string &params) {
     if (drawingPath_ == nullptr) {
         return;
     }
-    auto obj = kuikly::util::JSONObject::Parse(params);
+    auto obj = kuikly::util::AdoptParsedJson(params);
+    if (!obj) {
+        return;
+    }
     float x = obj->GetNumber("x");
     float y = obj->GetNumber("y");
 
@@ -274,7 +287,10 @@ void KRCanvasView::LineTo(const std::string &params) {
     if (drawingPath_ == nullptr) {
         return;
     }
-    auto obj = kuikly::util::JSONObject::Parse(params);
+    auto obj = kuikly::util::AdoptParsedJson(params);
+    if (!obj) {
+        return;
+    }
     float x = obj->GetNumber("x");
     float y = obj->GetNumber("y");
     OH_Drawing_PathLineTo(drawingPath_, x, y);
@@ -365,7 +381,10 @@ void KRCanvasView::SetTextAlign(const std::string &params) {
 }
 
 void KRCanvasView::SetFont(const std::string &params) {
-    auto paramObj = kuikly::util::JSONObject::Parse(params);
+    auto paramObj = kuikly::util::AdoptParsedJson(params);
+    if (!paramObj) {
+        return;
+    }
     auto size = paramObj->GetNumber("size");
     auto style = paramObj->GetString("style");
     auto weight = std::stoi(paramObj->GetString("weight"));
@@ -395,6 +414,10 @@ void KRCanvasView::StrokeText(const std::string &params) {
 }
 
 void KRCanvasView::DrawText(std::string params, std::string_view type) {
+    auto paramObj = kuikly::util::AdoptParsedJson(params);
+    if (!paramObj) {
+        return;
+    }
     OH_Drawing_TextStyle *txtStyle = OH_Drawing_CreateTextStyle();
     // 设置文字大小、字重等属性
     float fontSizeScale = 1;
@@ -436,7 +459,6 @@ void KRCanvasView::DrawText(std::string params, std::string_view type) {
         OH_Drawing_SetTextStyleForegroundPen(txtStyle, pen_);
     }
 
-    auto paramObj = kuikly::util::JSONObject::Parse(params);
     auto text = paramObj->GetString("text");
     auto x = paramObj->GetNumber("x");
     auto y = paramObj->GetNumber("y");
@@ -481,7 +503,10 @@ void KRCanvasView::QuadraticCurveTo(const std::string &params) {
     if (drawingPath_ == nullptr) {
         return;
     }
-    auto obj = kuikly::util::JSONObject::Parse(params);
+    auto obj = kuikly::util::AdoptParsedJson(params);
+    if (!obj) {
+        return;
+    }
     float cpx = obj->GetNumber("cpx");
     float cpy = obj->GetNumber("cpy");
     float x = obj->GetNumber("x");
@@ -493,7 +518,10 @@ void KRCanvasView::BezierCurveTo(const std::string &params) {
     if (drawingPath_ == nullptr) {
         return;
     }
-    auto obj = kuikly::util::JSONObject::Parse(params);
+    auto obj = kuikly::util::AdoptParsedJson(params);
+    if (!obj) {
+        return;
+    }
     float cp1x = obj->GetNumber("cp1x");
     float cp1y = obj->GetNumber("cp1y");
     float cp2x = obj->GetNumber("cp2x");
@@ -511,7 +539,10 @@ void KRCanvasView::Save() {
 
 void KRCanvasView::SaveLayer(const std::string &params) {
     if (canvas_) {
-        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto obj = kuikly::util::AdoptParsedJson(params);
+        if (!obj) {
+            return;
+        }
         float x = obj->GetNumber("x");
         float y = obj->GetNumber("y");
         float width = obj->GetNumber("width");
@@ -530,7 +561,10 @@ void KRCanvasView::Restore() {
 
 void KRCanvasView::clip(const std::string &params) {
     if (canvas_ && drawingPath_) {
-        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto obj = kuikly::util::AdoptParsedJson(params);
+        if (!obj) {
+            return;
+        }
         auto op = obj->GetNumber("intersect") ? OH_Drawing_CanvasClipOp::INTERSECT
                                               : OH_Drawing_CanvasClipOp::DIFFERENCE;
         OH_Drawing_CanvasClipPath(canvas_, drawingPath_, op, true);
@@ -539,7 +573,10 @@ void KRCanvasView::clip(const std::string &params) {
 
 void KRCanvasView::Translate(const std::string &params) {
     if (canvas_) {
-        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto obj = kuikly::util::AdoptParsedJson(params);
+        if (!obj) {
+            return;
+        }
         float x = obj->GetNumber("x");
         float y = obj->GetNumber("y");
         OH_Drawing_CanvasTranslate(canvas_, x, y);
@@ -548,7 +585,10 @@ void KRCanvasView::Translate(const std::string &params) {
 
 void KRCanvasView::Scale(const std::string &params) {
     if (canvas_) {
-        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto obj = kuikly::util::AdoptParsedJson(params);
+        if (!obj) {
+            return;
+        }
         float x = obj->GetNumber("x");
         float y = obj->GetNumber("y");
         OH_Drawing_CanvasScale(canvas_, x, y);
@@ -557,7 +597,10 @@ void KRCanvasView::Scale(const std::string &params) {
 
 void KRCanvasView::Rotate(const std::string &params) {
     if (canvas_) {
-        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto obj = kuikly::util::AdoptParsedJson(params);
+        if (!obj) {
+            return;
+        }
         float degrees = obj->GetNumber("angle") * 180 / M_PI;
         OH_Drawing_CanvasRotate(canvas_, degrees, 0, 0);
     }
@@ -565,7 +608,10 @@ void KRCanvasView::Rotate(const std::string &params) {
 
 void KRCanvasView::Skew(const std::string &params) {
     if (canvas_) {
-        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto obj = kuikly::util::AdoptParsedJson(params);
+        if (!obj) {
+            return;
+        }
         float x = obj->GetNumber("x");
         float y = obj->GetNumber("y");
         OH_Drawing_CanvasSkew(canvas_, x, y);
@@ -574,7 +620,10 @@ void KRCanvasView::Skew(const std::string &params) {
 
 void KRCanvasView::Transform(const std::string &params) {
     if (canvas_) {
-        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto obj = kuikly::util::AdoptParsedJson(params);
+        if (!obj) {
+            return;
+        }
         auto values = obj->GetNumberArray("values");
         if (values.size() < 9) {
             return;
@@ -591,7 +640,10 @@ void KRCanvasView::Transform(const std::string &params) {
 
 void KRCanvasView::DrawImage(const std::string &params) {
     if (canvas_) {
-        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto obj = kuikly::util::AdoptParsedJson(params);
+        if (!obj) {
+            return;
+        }
         std::string cacheKey = obj->GetString("cacheKey");
         auto module = std::dynamic_pointer_cast<KRMemoryCacheModule>(GetModule(kMemoryCacheModuleName));
         auto pixelmap = module->GetImage(cacheKey);
