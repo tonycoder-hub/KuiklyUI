@@ -38,10 +38,12 @@ const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 std::string KREncodeURLComponent(const std::string &in) {
     std::string out;
-    for (auto &b : in) {
+    // Iterate as unsigned: on OHOS aarch64/x86_64 char is signed, so UTF-8 high
+    // bytes become negative indexes into HEX_DIGITS_URI[16].
+    for (unsigned char b : in) {
         if (('A' <= b && b <= 'Z') || ('a' <= b && b <= 'z') || ('0' <= b && b <= '9') || b == '-' || b == '_' ||
             b == '.' || b == '!' || b == '~' || b == '*' || b == '\'' || b == '(' || b == ')') {
-            out.push_back(b);
+            out.push_back(static_cast<char>(b));
         } else {
             out.push_back('%');
             out.push_back(HEX_DIGITS_URI[b / 16]);
