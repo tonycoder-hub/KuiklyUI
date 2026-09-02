@@ -15,6 +15,8 @@
 
 #ifndef CORE_RENDER_OHOS_KRCOLOR_H
 #define CORE_RENDER_OHOS_KRCOLOR_H
+#include <cstdint>
+#include <cstdlib>
 #include <string>
 
 #include "KRStringUtil.h"
@@ -46,6 +48,10 @@ struct Color {
 
     static struct Color FromString(const std::string &colorString) {
         struct Color ret;
+        // Transparent black. Matches ConvertToHexColor's parse-failure fallback
+        // so empty / non-matching strings return a defined ARGB instead of
+        // leaving the union uninitialized.
+        ret.value = 0;
         // ets侧给的颜色字符串示例：rgba(0,0,0,0.9411764705882353)
         if (colorString.length() > 0) {
             std::string prefix("rgba(");
