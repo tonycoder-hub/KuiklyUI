@@ -270,12 +270,6 @@ std::string ConvertSizeToString(const KRSize &size) {
     return std::string(buffer.data());
 }
 
-KRBorderRadiuses ConverToBorderRadiuses(const std::string &borderRadiusString) {
-    auto splits = ConvertSplit(borderRadiusString, ",");
-    return KRBorderRadiuses(ConvertToFloat(splits[0]), ConvertToFloat(splits[1]), ConvertToFloat(splits[2]),
-                            ConvertToFloat(splits[3]));
-}
-
 std::string ConvertToPathCommand(const std::string &pathProp) {
     if (pathProp.empty()) {
         return "";
