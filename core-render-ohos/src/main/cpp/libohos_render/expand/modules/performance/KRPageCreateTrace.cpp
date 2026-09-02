@@ -28,6 +28,9 @@ constexpr char kEventOnCreateEnd[] = "on_create_end";
 
 KRPageCreateTrace::KRPageCreateTrace(std::string json_str) {
     auto json = kuikly::util::JSONObject::Parse(json_str);
+    if (!json) {
+        return;
+    }
     create_start_timeMills = json->GetNumber(kEventOnCreateStart);
     newPage_start_timeMills = json->GetNumber(kEventOnNewPageStart);
     newPage_end_timeMills = json->GetNumber(kEventOnNewPageEnd);

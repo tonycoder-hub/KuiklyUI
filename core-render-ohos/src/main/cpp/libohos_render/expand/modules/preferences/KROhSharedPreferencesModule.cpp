@@ -65,6 +65,9 @@ std::string KROhSharedPreferencesModule::GetItem(const KRAnyValue &params) {
 std::string KROhSharedPreferencesModule::SetItem(const KRAnyValue &params) {
     InitIfNeeded();
     auto jsonObj = util::JSONObject::Parse(params->toString());
+    if (!jsonObj) {
+        return "";
+    }
     std::string key = jsonObj->GetString("key");
     std::string value = jsonObj->GetString("value");
     this->preferences->SetSync(key, value);
