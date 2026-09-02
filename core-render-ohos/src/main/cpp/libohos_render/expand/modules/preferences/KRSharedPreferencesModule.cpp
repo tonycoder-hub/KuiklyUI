@@ -61,6 +61,9 @@ std::string KRSharedPreferencesModule::SetItem(const KRAnyValue &params) {
     InitIfNeeded();
 
     auto jsonObj = util::JSONObject::Parse(params->toString());
+    if (!jsonObj) {
+        return "";
+    }
     std::string key = jsonObj->GetString("key");
     std::string value = jsonObj->GetString("value");
     // KLOG_INFO(TAG) << "==== set item key = " << key << " value = " << value;

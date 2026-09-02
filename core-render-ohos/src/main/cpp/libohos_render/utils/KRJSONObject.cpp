@@ -41,11 +41,10 @@ std::string JSONObject::GetString(const std::string &key, const std::string &def
         return default_value;
     }
     cJSON *item = cJSON_GetObjectItem(reinterpret_cast<cJSON *>(cjson_), key.c_str());
-    if (item) {
-        std::string str = cJSON_GetStringValue(item);
-        return str;
+    if (item == nullptr || !cJSON_IsString(item)) {
+        return default_value;
     }
-    return default_value;
+    return AdoptCJsonStringValue(cJSON_GetStringValue(item), default_value);
 }
 
 std::vector<std::string> JSONObject::GetStringArray(const std::string &key) {
@@ -53,15 +52,22 @@ std::vector<std::string> JSONObject::GetStringArray(const std::string &key) {
         return std::vector<std::string>();
     }
     cJSON *item = cJSON_GetObjectItem(reinterpret_cast<cJSON *>(cjson_), key.c_str());
-    if (item) {
-        std::vector<std::string> result;
-        for (int i = 0; i < cJSON_GetArraySize(item); ++i) {
-            std::string str = cJSON_GetStringValue(cJSON_GetArrayItem(item, i));
-            result.emplace_back(str);
-        }
-        return result;
+    if (item == nullptr) {
+        return std::vector<std::string>();
     }
-    return std::vector<std::string>();
+    std::vector<std::string> result;
+    const int size = cJSON_GetArraySize(item);
+    for (int i = 0; i < size; ++i) {
+        cJSON *elem = cJSON_GetArrayItem(item, i);
+        if (!cJSON_IsString(elem)) {
+            continue;
+        }
+        std::string adopted;
+        if (TryAdoptCJsonStringValue(cJSON_GetStringValue(elem), &adopted)) {
+            result.emplace_back(std::move(adopted));
+        }
+    }
+    return result;
 }
 
 double JSONObject::GetNumber(const std::string &key, const double default_value) {
