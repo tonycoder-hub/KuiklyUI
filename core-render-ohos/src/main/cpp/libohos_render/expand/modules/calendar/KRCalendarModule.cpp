@@ -14,6 +14,7 @@
  */
 
 #include "KRCalendarModule.h"
+#include "KRCJsonStringAdopt.h"
 
 #include "thirdparty/cJSON/cJSON.h"
 
@@ -62,10 +63,16 @@ void KRCalendarModule::OnDestroy() {
 util::Date KRCalendarModule::CalDate(util::Date &date, const std::string &op) {
     // KLOG_INFO(TAG) << "calDate: op = " << op;
     cJSON *opObject = cJSON_Parse(op.data());
+    // leftover: cJSON_Parse of bad JSON leaves opObject null. Do not
+    // GetObjectItem on null; skip/default.
+    if (opObject == nullptr) {
+        return util::Date();
+    }
 
-    cJSON *optPtr = cJSON_GetObjectItemCaseSensitive(opObject, "opt");
-    std::string opt = optPtr != nullptr ? optPtr->valuestring : "";
+    // leftover: {"opt":1} has valuestring == NULL. Require IsString before adopt.
+    std::string opt = AdoptCalendarObjectString(opObject, "opt");
     if (opt != this->OP_SET && opt != this->OP_ADD) {
+        cJSON_Delete(opObject);
         return util::Date();
     }
 
@@ -130,17 +137,20 @@ std::string KRCalendarModule::CurrentTimestamp(const KRAnyValue &params) {
 std::string KRCalendarModule::GetField(const KRAnyValue &params) {
     // KLOG_INFO(TAG) << "getField: " << params.ToStringChecked();
     cJSON *paramObj = cJSON_Parse(params->toString().data());
+    if (paramObj == nullptr) {
+        return "";
+    }
     cJSON *dateMillisPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_TIME_MILLIS);
     std::int64_t dateMillis = (dateMillisPtr != nullptr) ? static_cast<std::int64_t>(dateMillisPtr->valuedouble) : 0;
     util::Date date = util::Date(dateMillis);
     cJSON *operationPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_OPERATIONS);
-    if (operationPtr != nullptr) {
-        cJSON *opsObj = cJSON_Parse(operationPtr->valuestring);
+    if (cJSON_IsString(operationPtr)) {
+        cJSON *opsObj = cJSON_Parse(AdoptCJsonItemValuestring(operationPtr).data());
         int opsSize = cJSON_GetArraySize(opsObj);
         for (auto i = 0; i < opsSize; i++) {
             cJSON *valuePtr = cJSON_GetArrayItem(opsObj, i);
             if (valuePtr != nullptr) {
-                date = this->CalDate(date, valuePtr->valuestring);
+                date = this->CalDate(date, AdoptCJsonItemValuestring(valuePtr));
             }
         }
         cJSON_Delete(opsObj);
@@ -178,20 +188,23 @@ std::string KRCalendarModule::GetField(const KRAnyValue &params) {
 std::string KRCalendarModule::GetTimeMillis(const KRAnyValue &params) {
     // KLOG_INFO(TAG) << "getTimeMillis: " << params.ToStringChecked();
     cJSON *paramObj = cJSON_Parse(params->toString().data());
+    if (paramObj == nullptr) {
+        return std::to_string(util::Date(0).GetTime());
+    }
     cJSON *dateMillisPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_TIME_MILLIS);
     std::int64_t dateMillis = (dateMillisPtr != nullptr) ? static_cast<std::int64_t>(dateMillisPtr->valuedouble) : 0;
     util::Date date = util::Date(dateMillis);
     // KLOG_INFO(TAG) << "startTime" << date.GetTime();
     cJSON *operationPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_OPERATIONS);
     // KLOG_INFO(TAG) << "getTimeMillis:  operation = " << operationPtr->valuestring;
-    if (operationPtr != nullptr) {
-        cJSON *opsObj = cJSON_Parse(operationPtr->valuestring);
+    if (cJSON_IsString(operationPtr)) {
+        cJSON *opsObj = cJSON_Parse(AdoptCJsonItemValuestring(operationPtr).data());
         auto opsSize = cJSON_GetArraySize(opsObj);
         // KLOG_INFO(TAG) << "getTimeMillis: opsSize = " << opsSize;
         for (auto i = 0; i < opsSize; i++) {
             cJSON *valuePtr = cJSON_GetArrayItem(opsObj, i);
             if (valuePtr != nullptr) {
-                date = this->CalDate(date, valuePtr->valuestring);
+                date = this->CalDate(date, AdoptCJsonItemValuestring(valuePtr));
             }
         }
         cJSON_Delete(opsObj);
@@ -209,11 +222,14 @@ std::string KRCalendarModule::ZeroPadded(int num, int digits) {
 std::string KRCalendarModule::Format(const KRAnyValue &params) {
     // KLOG_INFO(TAG) << "format: " << params.ToStringChecked();
     cJSON *paramObj = cJSON_Parse(params->toString().data());
-    cJSON *dateMillisPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_TIME_MILLIS);
-    std::int64_t dateMillis = (dateMillisPtr != nullptr) ? static_cast<std::int64_t>(dateMillisPtr->valuedouble) : 0;
+    std::int64_t dateMillis = 0;
+    if (paramObj != nullptr) {
+        cJSON *dateMillisPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_TIME_MILLIS);
+        dateMillis = (dateMillisPtr != nullptr) ? static_cast<std::int64_t>(dateMillisPtr->valuedouble) : 0;
+    }
     util::Date date = util::Date(dateMillis);
-    cJSON *formatPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_FORMAT);
-    std::string formatStr = (formatPtr != nullptr) ? formatPtr->valuestring : "";
+    // leftover: {"format":1} has valuestring == NULL. Require IsString before adopt.
+    std::string formatStr = AdoptCalendarObjectString(paramObj, this->PARAM_FORMAT);
     cJSON_Delete(paramObj);
     std::string result = formatStr;
 
@@ -244,11 +260,10 @@ std::string KRCalendarModule::Format(const KRAnyValue &params) {
 std::string KRCalendarModule::Parse(const KRAnyValue &params) {
     // KLOG_INFO(TAG) << "parse: " << params.ToStringChecked();
     cJSON *paramObj = cJSON_Parse(params->toString().data());
-    cJSON *dateStrPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_FORMATTED_TIME);
-    std::string dateStr = (dateStrPtr != nullptr) ? dateStrPtr->valuestring : "";
+    // leftover: numeric formattedTime / format have valuestring == NULL.
+    std::string dateStr = AdoptCalendarObjectString(paramObj, this->PARAM_FORMATTED_TIME);
     // KLOG_INFO(TAG) << "parse: " << dateStr;
-    cJSON *formatStrPtr = cJSON_GetObjectItemCaseSensitive(paramObj, this->PARAM_FORMAT);
-    std::string formatStr = (formatStrPtr != nullptr) ? formatStrPtr->valuestring : "";
+    std::string formatStr = AdoptCalendarObjectString(paramObj, this->PARAM_FORMAT);
     cJSON_Delete(paramObj);
     // Only supports date and format consistency
     util::Date date = util::Date();
